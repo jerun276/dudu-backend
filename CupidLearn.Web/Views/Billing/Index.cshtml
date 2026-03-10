@@ -1,0 +1,166 @@
+@model CupidLearn.Web.Models.Billing.BillingIndexViewModel
+@{
+    ViewData["Title"] = "Billing";
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.Error))
+{
+    <div class="alert alert-danger">@Model.Error</div>
+}
+
+<div class="row g-3">
+    <div class="col-12 col-lg-5">
+        <div class="card p-4">
+            <div class="fw-semibold mb-2">Organizations</div>
+
+            <form asp-action="CreateOrganization" method="post" class="mb-3">
+                @Html.AntiForgeryToken()
+                <div class="row g-2">
+                    <div class="col-12">
+                        <label class="form-label">Name</label>
+                        <input name="Name" class="form-control" placeholder="School / Institute" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Seat count (optional)</label>
+                        <input name="SeatCount" type="number" class="form-control" placeholder="0" />
+                    </div>
+                    <div class="col-12">
+                        <button class="btn btn-outline-dark" type="submit">Create organization</button>
+                    </div>
+                </div>
+            </form>
+
+            <form method="get" class="border rounded-3 p-3 bg-light">
+                <label class="form-label">Organization ID</label>
+                <input name="organizationId" value="@Model.OrganizationId" class="form-control" placeholder="GUID" />
+                <button class="btn btn-dark w-100 mt-2" type="submit">Load seats</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-7">
+        <div class="card p-4">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="fw-semibold">Seats</div>
+                <span class="badge text-bg-light">@Model.Seats.Count</span>
+            </div>
+
+            @if (Model.OrganizationId == null)
+            {
+                <div class="text-muted small">Enter an organization id to view seats.</div>
+            }
+            else
+            {
+                <div class="row g-2 mb-3">
+                    <div class="col-12 col-md-6">
+                        <form asp-action="AssignSeat" method="post" class="border rounded-3 p-3 bg-light">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="OrganizationId" value="@Model.OrganizationId" />
+                            <div class="fw-semibold mb-2">Assign seat</div>
+                            <input name="UserId" class="form-control" placeholder="UserId GUID" />
+                            <button class="btn btn-outline-dark w-100 mt-2" type="submit">Assign</button>
+                        </form>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <form asp-action="RevokeSeat" method="post" class="border rounded-3 p-3 bg-light">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="OrganizationId" value="@Model.OrganizationId" />
+                            <div class="fw-semibold mb-2">Revoke seat</div>
+                            <input name="UserId" class="form-control" placeholder="UserId GUID" />
+                            <button class="btn btn-outline-dark w-100 mt-2" type="submit">Revoke</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>UserId</th>
+                            <th>SeatId</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var s in Model.Seats)
+                        {
+                            <tr>
+                                <td><span class="badge text-bg-dark">@s.Status</span></td>
+                                <td class="text-muted small">@s.UserId</td>
+                                <td class="text-muted small">@s.Id</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card p-4">
+            <div class="fw-semibold mb-2">Subscription</div>
+
+            <form method="get" class="mb-3">
+                <label class="form-label">User ID</label>
+                <div class="input-group">
+                    <input name="userId" value="@Model.UserId" class="form-control" placeholder="GUID" />
+                    <button class="btn btn-dark" type="submit">Load</button>
+                </div>
+            </form>
+
+            @if (Model.UserId != null)
+            {
+                <div class="row g-3">
+                    <div class="col-12 col-lg-4">
+                        <div class="border rounded-3 p-3 bg-light">
+                            <div class="text-muted small">Plan</div>
+                            <div class="fw-semibold">@Model.Limits?.Plan</div>
+                            <div class="small text-muted">Max orgs: @Model.Limits?.MaxOrganizations</div>
+                            <div class="small text-muted">Max seats/org: @Model.Limits?.MaxSeatsPerOrganization</div>
+                            <div class="small text-muted">Max children: @Model.Limits?.MaxChildren</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-8">
+                        <form asp-action="UpsertSubscription" method="post" class="border rounded-3 p-3">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="UserId" value="@Model.UserId" />
+
+                            <div class="row g-2">
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label">Provider</label>
+                                    <input name="Provider" class="form-control" value="stripe" />
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label">ProviderSubscriptionId</label>
+                                    <input name="ProviderSubscriptionId" class="form-control" placeholder="sub_..." />
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label">Status</label>
+                                    <select name="Status" class="form-select">
+                                        <option value="ACTIVE">ACTIVE</option>
+                                        <option value="TRIALING">TRIALING</option>
+                                        <option value="CANCELED">CANCELED</option>
+                                        <option value="PAST_DUE">PAST_DUE</option>
+                                        <option value="INCOMPLETE">INCOMPLETE</option>
+                                        <option value="UNPAID">UNPAID</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <button class="btn btn-outline-dark" type="submit">Upsert subscription</button>
+                                </div>
+                            </div>
+                        </form>
+
+                        @if (Model.Subscription != null)
+                        {
+                            <div class="mt-3 small text-muted">
+                                Current subscription: @Model.Subscription.Provider (@Model.Subscription.Status) - @Model.Subscription.ProviderSubscriptionId
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

@@ -1,0 +1,318 @@
+@model CupidLearn.Web.Models.Content.ContentIndexViewModel
+@{
+    ViewData["Title"] = "Content";
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.Error))
+{
+    <div class="alert alert-danger">@Model.Error</div>
+}
+
+<div class="row g-3">
+    <div class="col-12 col-lg-4">
+        <div class="card p-4">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="fw-semibold">Levels</div>
+                <span class="badge text-bg-light">@Model.Levels.Count</span>
+            </div>
+
+            <form method="get" class="mb-3">
+                <label class="form-label">Language</label>
+                <input name="language" value="@Model.Language" class="form-control" placeholder="English" />
+                <button class="btn btn-dark w-100 mt-2" type="submit">Load</button>
+            </form>
+
+            <div class="list-group">
+                @foreach (var lvl in Model.Levels)
+                {
+                    var active = Model.SelectedLevelId == lvl.Id ? "active" : "";
+                    <a class="list-group-item list-group-item-action @active" href="@Url.Action("Index", new { language = Model.Language, levelId = lvl.Id })">
+                        <div class="fw-semibold">@lvl.Name</div>
+                        <div class="small text-muted">@lvl.Language</div>
+                        <div class="small text-muted">@lvl.Id</div>
+                    </a>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+        <div class="card p-4">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="fw-semibold">Modules</div>
+                <span class="badge text-bg-light">@Model.Modules.Count</span>
+            </div>
+
+            @if (Model.SelectedLevelId == null)
+            {
+                <div class="text-muted small">Select a level to view modules.</div>
+            }
+            else
+            {
+                <form asp-action="CreateModule" method="post" class="mb-3">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="LevelId" value="@Model.SelectedLevelId" />
+                    <label class="form-label">Create module</label>
+                    <input name="Name" class="form-control" placeholder="Module name" />
+                    <button class="btn btn-outline-dark w-100 mt-2" type="submit">Create</button>
+                </form>
+
+                <div class="list-group">
+                    @foreach (var m in Model.Modules)
+                    {
+                        var active = Model.SelectedModuleId == m.Id ? "active" : "";
+                        <a class="list-group-item list-group-item-action @active" href="@Url.Action("Index", new { language = Model.Language, levelId = Model.SelectedLevelId, moduleId = m.Id })">
+                            <div class="fw-semibold">@m.Name</div>
+                            <div class="small text-muted">@m.Id</div>
+                        </a>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+        <div class="card p-4">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="fw-semibold">Lessons</div>
+                <span class="badge text-bg-light">@Model.Lessons.Count</span>
+            </div>
+
+            @if (Model.SelectedModuleId == null)
+            {
+                <div class="text-muted small">Select a module to view lessons.</div>
+            }
+            else
+            {
+                <form asp-action="CreateLesson" method="post" class="mb-3">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="ModuleId" value="@Model.SelectedModuleId" />
+
+                    <label class="form-label">Create lesson</label>
+                    <input name="Title" class="form-control mb-2" placeholder="Lesson title" />
+                    <input name="Description" class="form-control mb-2" placeholder="Short description" />
+                    <input name="OrderIndex" type="number" class="form-control mb-2" placeholder="Order" value="0" />
+                    <textarea name="Content" class="form-control mb-2" rows="4" placeholder="Lesson content (optional)"></textarea>
+
+                    <button class="btn btn-outline-dark w-100" type="submit">Create</button>
+                </form>
+
+                <div class="list-group">
+                    @foreach (var l in Model.Lessons.OrderBy(x => x.OrderIndex))
+                    {
+                        var active = Model.SelectedLessonId == l.Id ? "active" : "";
+                        <a class="list-group-item list-group-item-action @active" href="@Url.Action("Index", new { language = Model.Language, levelId = Model.SelectedLevelId, moduleId = Model.SelectedModuleId, lessonId = l.Id })">
+                            <div class="d-flex justify-content-between">
+                                <div class="fw-semibold">@l.Title</div>
+                                <span class="badge text-bg-light">@l.OrderIndex</span>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(l.Description))
+                            {
+                                <div class="small text-muted">@l.Description</div>
+                            }
+                            <div class="small text-muted">@l.Id</div>
+                        </a>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card p-4">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="fw-semibold">Activities</div>
+                <span class="badge text-bg-light">@Model.Activities.Count</span>
+            </div>
+
+            @if (Model.SelectedLessonId == null)
+            {
+                <div class="text-muted small">Select a lesson to view and create activities.</div>
+            }
+            else
+            {
+                <form asp-action="CreateActivity" method="post" class="mb-3">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="LessonId" value="@Model.SelectedLessonId" />
+
+                    <div class="row g-2">
+                        <div class="col-12 col-md-3">
+                            <label class="form-label">Type</label>
+                            <select name="Type" class="form-select">
+                                <option value="IMAGE_MATCH">IMAGE_MATCH</option>
+                                <option value="FLASHCARD">FLASHCARD</option>
+                                <option value="LISTEN_REPEAT">LISTEN_REPEAT</option>
+                                <option value="READ_ALOUD">READ_ALOUD</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-5">
+                            <label class="form-label">Title</label>
+                            <input name="Title" class="form-control" placeholder="Activity title" />
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label">Image URL</label>
+                            <input name="ImageUrl" class="form-control" placeholder="https://..." />
+                        </div>
+                        <div class="col-12 col-md-2">
+                            <label class="form-label">Order</label>
+                            <input name="OrderIndex" type="number" class="form-control" value="0" />
+                        </div>
+                        <div class="col-12 col-md-10">
+                            <label class="form-label">Payload JSON (optional)</label>
+                            <input name="PayloadJson" class="form-control" placeholder='{"key":"value"}' />
+                        </div>
+                        <div class="col-12">
+                            <button class="btn btn-outline-dark" type="submit">Create activity</button>
+                        </div>
+                    </div>
+                </form>
+
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead>
+                        <tr>
+                            <th>Order</th>
+                            <th>Type</th>
+                            <th>Title</th>
+                            <th>Image</th>
+                            <th>ID</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var a in Model.Activities.OrderBy(x => x.OrderIndex))
+                        {
+                            <tr>
+                                <td><span class="badge text-bg-light">@a.OrderIndex</span></td>
+                                <td><span class="badge text-bg-dark">@a.Type</span></td>
+                                <td class="fw-semibold">@a.Title</td>
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(a.ImageUrl))
+                                    {
+                                        <a href="@a.ImageUrl" target="_blank">open</a>
+                                    }
+                                </td>
+                                <td class="text-muted small">@a.Id</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card p-4">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="fw-semibold">Quizzes</div>
+                <span class="badge text-bg-light">@Model.Quizzes.Count</span>
+            </div>
+
+            @if (Model.SelectedLessonId == null)
+            {
+                <div class="text-muted small">Select a lesson to view and create quizzes.</div>
+            }
+            else
+            {
+                <form asp-action="CreateQuiz" method="post" class="mb-3">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="LessonId" value="@Model.SelectedLessonId" />
+                    <label class="form-label">Create quiz</label>
+                    <div class="input-group">
+                        <input name="Title" class="form-control" placeholder="Quiz title" />
+                        <button class="btn btn-outline-dark" type="submit">Create</button>
+                    </div>
+                </form>
+
+                <div class="list-group">
+                    @foreach (var q in Model.Quizzes)
+                    {
+                        var active = Model.SelectedQuizId == q.Id ? "active" : "";
+                        <a class="list-group-item list-group-item-action @active" href="@Url.Action("Index", new { language = Model.Language, levelId = Model.SelectedLevelId, moduleId = Model.SelectedModuleId, lessonId = Model.SelectedLessonId, quizId = q.Id })">
+                            <div class="fw-semibold">@q.Title</div>
+                            <div class="small text-muted">@q.Id</div>
+                        </a>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card p-4">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="fw-semibold">Quiz Questions</div>
+                <span class="badge text-bg-light">@Model.QuizQuestions.Count</span>
+            </div>
+
+            @if (Model.SelectedQuizId == null)
+            {
+                <div class="text-muted small">Select a quiz to view and create questions.</div>
+            }
+            else
+            {
+                <form asp-action="CreateQuizQuestion" method="post" class="mb-3">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="QuizId" value="@Model.SelectedQuizId" />
+
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <label class="form-label">Prompt</label>
+                            <input name="Prompt" class="form-control" placeholder="Question prompt" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Option A</label>
+                            <input name="OptionA" class="form-control" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Option B</label>
+                            <input name="OptionB" class="form-control" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Option C</label>
+                            <input name="OptionC" class="form-control" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Option D</label>
+                            <input name="OptionD" class="form-control" />
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <label class="form-label">Correct</label>
+                            <select name="CorrectOption" class="form-select">
+                                <option value="A">A</option>
+                                <option value="B">B</option>
+                                <option value="C">C</option>
+                                <option value="D">D</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <button class="btn btn-outline-dark" type="submit">Create question</button>
+                        </div>
+                    </div>
+                </form>
+
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead>
+                        <tr>
+                            <th>Prompt</th>
+                            <th>Correct</th>
+                            <th>ID</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var qq in Model.QuizQuestions)
+                        {
+                            <tr>
+                                <td class="fw-semibold">@qq.Prompt</td>
+                                <td><span class="badge text-bg-dark">@qq.CorrectOption</span></td>
+                                <td class="text-muted small">@qq.Id</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>

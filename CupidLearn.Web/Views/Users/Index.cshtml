@@ -1,0 +1,61 @@
+@model CupidLearn.Web.Models.Users.UsersIndexViewModel
+@{
+    ViewData["Title"] = "Users";
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.Error))
+{
+    <div class="alert alert-danger">@Model.Error</div>
+}
+
+<div class="row g-3">
+    <div class="col-12 col-lg-5">
+        <div class="card p-4">
+            <div class="fw-semibold mb-2">Lookup user</div>
+            <form method="get">
+                <label class="form-label">User ID</label>
+                <div class="input-group">
+                    <input name="userId" value="@Model.UserId" class="form-control" placeholder="GUID" />
+                    <button class="btn btn-dark" type="submit">Load</button>
+                </div>
+                <div class="text-muted small mt-2">This uses <code>GET /api/profiles/{userId}</code> (ADMIN can view any profile).</div>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-7">
+        <div class="card p-4">
+            <div class="fw-semibold mb-2">Profile</div>
+
+            @if (Model.Profile == null)
+            {
+                <div class="text-muted small">No profile loaded.</div>
+            }
+            else
+            {
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <div class="text-muted small">Full name</div>
+                        <div class="fw-semibold">@Model.Profile.FullName</div>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <div class="text-muted small">Role</div>
+                        <div class="fw-semibold">@Model.Profile.Role</div>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <div class="text-muted small">Email</div>
+                        <div class="fw-semibold">@Model.Profile.Email</div>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <div class="text-muted small">Phone</div>
+                        <div class="fw-semibold">@Model.Profile.PhoneNumber</div>
+                    </div>
+                    <div class="col-12">
+                        <div class="text-muted small">User ID</div>
+                        <div class="text-muted small">@Model.Profile.UserId</div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CupidLearn.Infrastructure.Services;
 
-public class OtpService(AppDbContext db) : IOtpService
+public class OtpService(AppDbContext db, IEmailSender emailSender) : IOtpService
 {
     public async Task<MessageResponse> RequestAsync(OtpRequest request, CancellationToken ct)
     {
@@ -43,7 +43,11 @@ public class OtpService(AppDbContext db) : IOtpService
 
         await db.SaveChangesAsync(ct);
 
-        Console.WriteLine($"OTP for {email}: {otp}");
+        await emailSender.SendAsync(
+            toEmail: email,
+            subject: "CupidLearn OTP Verification",
+            bodyText: $"Your OTP is: {otp}. It will expire in 10 minutes.",
+            ct: ct);
 
         return new MessageResponse("If the account exists and is not verified, an OTP has been issued.");
     }

@@ -1,5 +1,6 @@
 using CupidLearn.Infrastructure.Auth;
 using CupidLearn.Infrastructure.Data;
+using CupidLearn.Infrastructure.Email;
 using CupidLearn.Infrastructure.Seeding;
 using CupidLearn.Infrastructure.Services;
 using CupidLearn.Application.Abstractions;
@@ -13,6 +14,9 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
+        services.AddScoped<IEmailSender, SmtpEmailSender>();
+
         services.AddDbContext<AppDbContext>(options =>
         {
             var connectionString = configuration.GetConnectionString("Postgres");
@@ -32,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<IExamAttemptService, ExamAttemptService>();
         services.AddScoped<ISubscriptionService, SubscriptionService>();
         services.AddScoped<IOrganizationSeatService, OrganizationSeatService>();
+        services.AddScoped<IAdminUsersService, AdminUsersService>();
 
         services.Configure<AdminSeedOptions>(configuration.GetSection(AdminSeedOptions.SectionName));
         services.AddScoped<DatabaseSeeder>();

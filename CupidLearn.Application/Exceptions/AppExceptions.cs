@@ -41,3 +41,10 @@ public sealed class ConflictException(string message) : AppException(message)
 
     public override string Title => "Conflict";
 }
+
+public sealed class ServiceUnavailableException(string message) : AppException(message)
+{
+    public override int StatusCode => 503;
+
+    public override string Title => "Service Unavailable";
+}

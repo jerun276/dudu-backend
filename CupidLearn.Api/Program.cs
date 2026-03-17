@@ -7,7 +7,53 @@ using CupidLearn.Api.Infrastructure.Swagger;
 
 var builder = WebApplication.CreateBuilder(args);
 
+if (builder.Environment.IsDevelopment())
+{
+    var envPath = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", ".env"));
+    if (File.Exists(envPath))
+    {
+        var envValues = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var rawLine in File.ReadAllLines(envPath))
+        {
+            var line = rawLine.Trim();
+            if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#'))
+            {
+                continue;
+            }
+
+            var equalsIndex = line.IndexOf('=');
+            if (equalsIndex <= 0)
+            {
+                continue;
+            }
+
+            var key = line[..equalsIndex].Trim();
+            var value = line[(equalsIndex + 1)..].Trim();
+            if (key.Length == 0)
+            {
+                continue;
+            }
+
+            var normalizedKey = key.Replace("__", ":", StringComparison.Ordinal);
+            envValues[normalizedKey] = value;
+        }
+
+        builder.Configuration.AddInMemoryCollection(envValues);
+    }
+}
+
 builder.Services.AddControllers();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("DevCors", policy =>
+    {
+        policy
+            .AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 
 builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -43,6 +89,11 @@ using (var scope = app.Services.CreateScope())
 
 app.UseGlobalExceptionHandling();
 
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("DevCors");
+}
+
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
@@ -50,7 +101,10 @@ app.UseSwaggerUI(c =>
     c.RoutePrefix = "swagger";
 });
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -56,3 +56,15 @@ node_modules/
 ## Temporary
 *.tmp
 *.temp
+
+## Env
+.env
+
+## Txt
+*.txt
+
+## Logs
+*.log
+
+## Readme
+*.md

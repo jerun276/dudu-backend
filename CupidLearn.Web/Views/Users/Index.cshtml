@@ -9,50 +9,134 @@
 }
 
 <div class="row g-3">
-    <div class="col-12 col-lg-5">
+    <div class="col-12 col-lg-7">
         <div class="card p-4">
-            <div class="fw-semibold mb-2">Lookup user</div>
-            <form method="get">
-                <label class="form-label">User ID</label>
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="fw-semibold">Search users</div>
+                <span class="badge text-bg-light">@Model.Total</span>
+            </div>
+
+            <form method="get" class="mb-3">
+                <label class="form-label">Search</label>
                 <div class="input-group">
-                    <input name="userId" value="@Model.UserId" class="form-control" placeholder="GUID" />
-                    <button class="btn btn-dark" type="submit">Load</button>
+                    <input name="query" value="@Model.Query" class="form-control" placeholder="email / phone" />
+                    <button class="btn btn-dark" type="submit">Search</button>
                 </div>
-                <div class="text-muted small mt-2">This uses <code>GET /api/profiles/{userId}</code> (ADMIN can view any profile).</div>
+                <div class="text-muted small mt-2">Uses <code>GET /api/admin/users</code> (ADMIN only).</div>
             </form>
+
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Role</th>
+                        <th>UserId</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var u in Model.Items)
+                    {
+                        <tr>
+                            <td>
+                                <a class="fw-semibold" href="@Url.Action("Index", new { query = Model.Query, userId = u.UserId })">@u.Email</a>
+                                @if (!string.IsNullOrWhiteSpace(u.FullName))
+                                {
+                                    <div class="small text-muted">@u.FullName</div>
+                                }
+                            </td>
+                            <td class="text-muted small">@u.PhoneNumber</td>
+                            <td><span class="badge text-bg-dark">@u.Role</span></td>
+                            <td class="text-muted small">@u.UserId</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-    <div class="col-12 col-lg-7">
+    <div class="col-12 col-lg-5">
         <div class="card p-4">
-            <div class="fw-semibold mb-2">Profile</div>
+            <div class="fw-semibold mb-2">User summary</div>
 
-            @if (Model.Profile == null)
+            @if (Model.Summary == null)
             {
-                <div class="text-muted small">No profile loaded.</div>
+                <div class="text-muted small">Select a user from the results.</div>
             }
             else
             {
-                <div class="row g-3">
-                    <div class="col-12 col-md-6">
-                        <div class="text-muted small">Full name</div>
-                        <div class="fw-semibold">@Model.Profile.FullName</div>
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <div class="text-muted small">Role</div>
-                        <div class="fw-semibold">@Model.Profile.Role</div>
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <div class="text-muted small">Email</div>
-                        <div class="fw-semibold">@Model.Profile.Email</div>
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <div class="text-muted small">Phone</div>
-                        <div class="fw-semibold">@Model.Profile.PhoneNumber</div>
-                    </div>
+                <div class="border rounded-3 p-3 bg-light mb-3">
+                    <div class="fw-semibold">@Model.Summary.Email</div>
+                    <div class="small text-muted">@Model.Summary.UserId</div>
+                    <div class="small text-muted">Role: @Model.Summary.Role</div>
+                    @if (!string.IsNullOrWhiteSpace(Model.Summary.FullName))
+                    {
+                        <div class="small text-muted">Name: @Model.Summary.FullName</div>
+                    }
+                </div>
+
+                <div class="row g-2">
                     <div class="col-12">
-                        <div class="text-muted small">User ID</div>
-                        <div class="text-muted small">@Model.Profile.UserId</div>
+                        <div class="fw-semibold">Subscription limits</div>
+                        <div class="small text-muted">Plan: @Model.Summary.Limits.Plan</div>
+                        <div class="small text-muted">Max orgs: @Model.Summary.Limits.MaxOrganizations</div>
+                        <div class="small text-muted">Max seats/org: @Model.Summary.Limits.MaxSeatsPerOrganization</div>
+                        <div class="small text-muted">Max children: @Model.Summary.Limits.MaxChildren</div>
+                    </div>
+
+                    <div class="col-12 mt-2">
+                        <div class="fw-semibold">Subscription</div>
+                        @if (Model.Summary.Subscription == null)
+                        {
+                            <div class="text-muted small">No subscription found.</div>
+                        }
+                        else
+                        {
+                            <div class="small text-muted">@Model.Summary.Subscription.Provider (@Model.Summary.Subscription.Status)</div>
+                            <div class="small text-muted">@Model.Summary.Subscription.ProviderSubscriptionId</div>
+                        }
+                    </div>
+
+                    <div class="col-12 mt-2">
+                        <div class="fw-semibold">Seat assignments</div>
+                        @if (!Model.Summary.SeatAssignments.Any())
+                        {
+                            <div class="text-muted small">None</div>
+                        }
+                        else
+                        {
+                            <ul class="list-group list-group-flush">
+                                @foreach (var s in Model.Summary.SeatAssignments)
+                                {
+                                    <li class="list-group-item px-0">
+                                        <span class="badge text-bg-dark">@s.SeatStatus</span>
+                                        <span class="text-muted small ms-2">Org: @s.OrganizationId</span>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </div>
+
+                    <div class="col-12 mt-2">
+                        <div class="fw-semibold">Children</div>
+                        @if (!Model.Summary.Children.Any())
+                        {
+                            <div class="text-muted small">None</div>
+                        }
+                        else
+                        {
+                            <ul class="list-group list-group-flush">
+                                @foreach (var c in Model.Summary.Children)
+                                {
+                                    <li class="list-group-item px-0">
+                                        <div class="fw-semibold">@c.DisplayName</div>
+                                        <div class="text-muted small">@c.Id</div>
+                                    </li>
+                                }
+                            </ul>
+                        }
                     </div>
                 </div>
             }

@@ -39,8 +39,9 @@ public class AuthService(AppDbContext db, JwtTokenService jwtTokenService) : IAu
 
         await db.SaveChangesAsync(ct);
 
-        var token = jwtTokenService.CreateAccessToken(user.Id, user.Role);
-        return new AuthResponse(user.Id, user.Email, user.Role, token);
+        var accessToken = jwtTokenService.CreateAccessToken(user.Id, user.Role);
+        var refreshToken = await IssueRefreshTokenAsync(user.Id, ct);
+        return new AuthResponse(user.Id, user.Email, user.Role, accessToken, refreshToken);
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken ct)
@@ -58,7 +59,99 @@ public class AuthService(AppDbContext db, JwtTokenService jwtTokenService) : IAu
             throw new UnauthorizedException("Invalid credentials");
         }
 
-        var token = jwtTokenService.CreateAccessToken(user.Id, user.Role);
-        return new AuthResponse(user.Id, user.Email, user.Role, token);
+        var accessToken = jwtTokenService.CreateAccessToken(user.Id, user.Role);
+        var refreshToken = await IssueRefreshTokenAsync(user.Id, ct);
+        return new AuthResponse(user.Id, user.Email, user.Role, accessToken, refreshToken);
+    }
+
+    public async Task<AuthResponse> RefreshAsync(RefreshRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.RefreshToken))
+        {
+            throw new BadRequestException("refreshToken is required");
+        }
+
+        var oldTokenHash = jwtTokenService.HashRefreshToken(request.RefreshToken);
+        var token = await db.RefreshTokens.FirstOrDefaultAsync(x => x.TokenHash == oldTokenHash, ct);
+        if (token == null)
+        {
+            throw new UnauthorizedException("Invalid refresh token");
+        }
+
+        if (token.RevokedAt.HasValue)
+        {
+            throw new UnauthorizedException("Refresh token revoked");
+        }
+
+        if (token.ExpiresAt <= DateTimeOffset.UtcNow)
+        {
+            throw new UnauthorizedException("Refresh token expired");
+        }
+
+        var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Id == token.UserId, ct);
+        if (user == null)
+        {
+            throw new UnauthorizedException("Invalid refresh token");
+        }
+
+        var newRefreshToken = jwtTokenService.CreateRefreshToken();
+        var newHash = jwtTokenService.HashRefreshToken(newRefreshToken);
+        var now = DateTimeOffset.UtcNow;
+
+        token.RevokedAt = now;
+        token.ReplacedByTokenHash = newHash;
+
+        db.RefreshTokens.Add(new RefreshToken
+        {
+            UserId = user.Id,
+            TokenHash = newHash,
+            ExpiresAt = jwtTokenService.GetRefreshTokenExpiresAt(now),
+            CreatedAt = now
+        });
+
+        await db.SaveChangesAsync(ct);
+
+        var accessToken = jwtTokenService.CreateAccessToken(user.Id, user.Role);
+        return new AuthResponse(user.Id, user.Email, user.Role, accessToken, newRefreshToken);
+    }
+
+    public async Task LogoutAsync(LogoutRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.RefreshToken))
+        {
+            throw new BadRequestException("refreshToken is required");
+        }
+
+        var tokenHash = jwtTokenService.HashRefreshToken(request.RefreshToken);
+        var token = await db.RefreshTokens.FirstOrDefaultAsync(x => x.TokenHash == tokenHash, ct);
+        if (token == null)
+        {
+            return;
+        }
+
+        if (!token.RevokedAt.HasValue)
+        {
+            token.RevokedAt = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(ct);
+        }
+    }
+
+    private async Task<string> IssueRefreshTokenAsync(Guid userId, CancellationToken ct)
+    {
+        var refreshToken = jwtTokenService.CreateRefreshToken();
+        var hash = jwtTokenService.HashRefreshToken(refreshToken);
+
+        var now = DateTimeOffset.UtcNow;
+        db.RefreshTokens.Add(new RefreshToken
+        {
+            UserId = userId,
+            TokenHash = hash,
+            ExpiresAt = jwtTokenService.GetRefreshTokenExpiresAt(now),
+            CreatedAt = now
+        });
+
+        await db.SaveChangesAsync(ct);
+
+        return refreshToken;
     }
 }

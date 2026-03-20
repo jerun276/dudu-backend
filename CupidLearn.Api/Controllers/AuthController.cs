@@ -23,4 +23,20 @@ public class AuthController(IAuthService authService) : ControllerBase
         var response = await authService.LoginAsync(request, ct);
         return Ok(response);
     }
+
+    [HttpPost("refresh")]
+    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<AuthResponse>> Refresh([FromBody] RefreshRequest request, CancellationToken ct)
+    {
+        var response = await authService.RefreshAsync(request, ct);
+        return Ok(response);
+    }
+
+    [HttpPost("logout")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Logout([FromBody] LogoutRequest request, CancellationToken ct)
+    {
+        await authService.LogoutAsync(request, ct);
+        return NoContent();
+    }
 }

@@ -11,6 +11,7 @@ namespace CupidLearn.Infrastructure.Data;
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
     public DbSet<AppUser> Users => Set<AppUser>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<UserOtp> UserOtps => Set<UserOtp>();
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
     public DbSet<ChildProfile> ChildProfiles => Set<ChildProfile>();
@@ -42,6 +43,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Email).HasMaxLength(320);
             e.Property(x => x.PhoneNo).HasMaxLength(32);
             e.Property(x => x.Role).HasMaxLength(32);
+        });
+
+        modelBuilder.Entity<RefreshToken>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.TokenHash).IsUnique();
+            e.HasIndex(x => x.UserId);
+            e.HasIndex(x => x.ExpiresAt);
+            e.Property(x => x.TokenHash).HasMaxLength(128);
+            e.Property(x => x.ReplacedByTokenHash).HasMaxLength(128);
         });
 
         modelBuilder.Entity<UserOtp>(e =>

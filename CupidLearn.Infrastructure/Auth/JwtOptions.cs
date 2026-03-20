@@ -8,6 +8,8 @@ public class JwtOptions
 
     public int ExpirationSeconds { get; set; } = 3600;
 
+    public int RefreshTokenExpirationDays { get; set; } = 30;
+
     public string Issuer { get; set; } = "cupid";
 
     public string Audience { get; set; } = "cupid";

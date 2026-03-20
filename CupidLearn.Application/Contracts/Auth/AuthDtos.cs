@@ -16,7 +16,12 @@ public record AuthResponse(
     Guid UserId,
     string Email,
     string Role,
-    string AccessToken);
+    string AccessToken,
+    string RefreshToken);
+
+public record RefreshRequest([Required] string RefreshToken);
+
+public record LogoutRequest([Required] string RefreshToken);
 
 public record MessageResponse(string Message);
 

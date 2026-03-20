@@ -10,6 +10,12 @@ namespace CupidLearn.Infrastructure.Services;
 
 public class ContentQueryService(AppDbContext db) : IContentQueryService
 {
+    public async Task<List<ActivityTypeResponse>> ListActivityTypesAsync(CancellationToken ct)
+    {
+        var types = await db.ActivityTypes.AsNoTracking().OrderBy(x => x.DisplayName).ToListAsync(ct);
+        return types.Select(ToActivityTypeResponse).ToList();
+    }
+
     public async Task<List<LevelResponse>> ListLevelsAsync(string? language, CancellationToken ct)
     {
         var query = db.Levels.AsQueryable();
@@ -21,6 +27,17 @@ public class ContentQueryService(AppDbContext db) : IContentQueryService
 
         var levels = await query.OrderBy(x => x.Name).ToListAsync(ct);
         return levels.Select(x => new LevelResponse(x.Id, x.Language, x.Name)).ToList();
+    }
+
+    public async Task<LevelResponse> GetLevelByIdAsync(Guid levelId, CancellationToken ct)
+    {
+        var level = await db.Levels.AsNoTracking().FirstOrDefaultAsync(x => x.Id == levelId, ct);
+        if (level == null)
+        {
+            throw new NotFoundException("Level not found");
+        }
+
+        return new LevelResponse(level.Id, level.Language, level.Name);
     }
 
     public async Task<List<ModuleResponse>> ListModulesByLevelAsync(Guid levelId, CancellationToken ct)
@@ -35,6 +52,17 @@ public class ContentQueryService(AppDbContext db) : IContentQueryService
         return modules.Select(x => new ModuleResponse(x.Id, x.LevelId, x.Name)).ToList();
     }
 
+    public async Task<ModuleResponse> GetModuleByIdAsync(Guid moduleId, CancellationToken ct)
+    {
+        var module = await db.Modules.AsNoTracking().FirstOrDefaultAsync(x => x.Id == moduleId, ct);
+        if (module == null)
+        {
+            throw new NotFoundException("Module not found");
+        }
+
+        return new ModuleResponse(module.Id, module.LevelId, module.Name);
+    }
+
     public async Task<List<LessonResponse>> ListLessonsByModuleAsync(Guid moduleId, CancellationToken ct)
     {
         var moduleExists = await db.Modules.AnyAsync(x => x.Id == moduleId, ct);
@@ -45,6 +73,17 @@ public class ContentQueryService(AppDbContext db) : IContentQueryService
 
         var lessons = await db.Lessons.Where(x => x.ModuleId == moduleId).OrderBy(x => x.OrderIndex).ToListAsync(ct);
         return lessons.Select(ToLessonResponse).ToList();
+    }
+
+    public async Task<LessonResponse> GetLessonByIdAsync(Guid lessonId, CancellationToken ct)
+    {
+        var lesson = await db.Lessons.AsNoTracking().FirstOrDefaultAsync(x => x.Id == lessonId, ct);
+        if (lesson == null)
+        {
+            throw new NotFoundException("Lesson not found");
+        }
+
+        return ToLessonResponse(lesson);
     }
 
     public async Task<List<ActivityResponse>> ListActivitiesByLessonAsync(Guid lessonId, CancellationToken ct)
@@ -146,4 +185,22 @@ public class ContentQueryService(AppDbContext db) : IContentQueryService
         x.CorrectOption,
         x.CreatedAt,
         x.UpdatedAt);
+
+    private static ActivityTypeResponse ToActivityTypeResponse(ActivityType x)
+    {
+        JsonElement? schema = null;
+        if (!string.IsNullOrWhiteSpace(x.SchemaJson))
+        {
+            schema = JsonSerializer.Deserialize<JsonElement>(x.SchemaJson);
+        }
+
+        return new ActivityTypeResponse(
+            x.Id,
+            x.Key,
+            x.DisplayName,
+            x.Description,
+            schema,
+            x.CreatedAt,
+            x.UpdatedAt);
+    }
 }

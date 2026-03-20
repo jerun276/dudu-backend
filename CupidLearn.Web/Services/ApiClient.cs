@@ -14,6 +14,10 @@ public class ApiClient(IHttpClientFactory httpClientFactory, IHttpContextAccesso
         if (ctx?.User?.Identity?.IsAuthenticated == true)
         {
             var token = ctx.User.FindFirst("access_token")?.Value;
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                token = ctx.GetTokenAsync("access_token").GetAwaiter().GetResult();
+            }
             if (!string.IsNullOrWhiteSpace(token))
             {
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);

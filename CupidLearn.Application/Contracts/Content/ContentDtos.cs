@@ -12,7 +12,14 @@ public record LevelCreateRequest(
     string? Language,
     [Required] string Name);
 
+public record LevelUpdateRequest(
+    string? Language,
+    [Required] string Name);
+
 public record ModuleCreateRequest(
+    [Required] string Name);
+
+public record ModuleUpdateRequest(
     [Required] string Name);
 
 public record ExamCreateRequest(

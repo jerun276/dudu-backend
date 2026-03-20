@@ -20,3 +20,17 @@ public class Exam
     public Guid ModuleId { get; set; }
     public string? Title { get; set; }
 }
+
+public class ActivityType
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public string Key { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public string? Description { get; set; }
+
+    public string? SchemaJson { get; set; }
+
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}

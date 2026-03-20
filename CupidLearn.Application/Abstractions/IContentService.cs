@@ -12,6 +12,10 @@ public interface IContentService
 
     Task<LevelResponse> CreateLevelAsync(LevelCreateRequest request, CancellationToken ct);
 
+    Task<LevelResponse> UpdateLevelAsync(Guid levelId, LevelUpdateRequest request, CancellationToken ct);
+
+    Task DeleteLevelAsync(Guid levelId, CancellationToken ct);
+
     Task<ModuleResponse> CreateModuleAsync(Guid levelId, ModuleCreateRequest request, CancellationToken ct);
 
     Task<ExamResponse> CreateExamAsync(Guid moduleId, ExamCreateRequest request, CancellationToken ct);

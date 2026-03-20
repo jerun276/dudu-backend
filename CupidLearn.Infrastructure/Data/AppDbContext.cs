@@ -19,6 +19,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Module> Modules => Set<Module>();
     public DbSet<Exam> Exams => Set<Exam>();
 
+    public DbSet<ActivityType> ActivityTypes => Set<ActivityType>();
+
     public DbSet<Lesson> Lessons => Set<Lesson>();
     public DbSet<LessonActivity> LessonActivities => Set<LessonActivity>();
     public DbSet<Quiz> Quizzes => Set<Quiz>();
@@ -70,6 +72,15 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<Level>().HasKey(x => x.Id);
         modelBuilder.Entity<Module>().HasKey(x => x.Id);
         modelBuilder.Entity<Exam>().HasKey(x => x.Id);
+
+        modelBuilder.Entity<ActivityType>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.Key).IsUnique();
+            e.Property(x => x.Key).HasMaxLength(64);
+            e.Property(x => x.DisplayName).HasMaxLength(128);
+            e.Property(x => x.Description).HasMaxLength(1024);
+        });
 
         modelBuilder.Entity<Lesson>(e =>
         {

@@ -3,316 +3,1041 @@
     ViewData["Title"] = "Content";
 }
 
+@if (TempData["Success"] is string successMsg && !string.IsNullOrWhiteSpace(successMsg))
+{
+    <div class="alert alert-success">@successMsg</div>
+}
+
+@if (TempData["Error"] is string errorMsg && !string.IsNullOrWhiteSpace(errorMsg))
+{
+    <div class="alert alert-danger">@errorMsg</div>
+}
+
 @if (!string.IsNullOrWhiteSpace(Model.Error))
 {
     <div class="alert alert-danger">@Model.Error</div>
 }
 
-<div class="row g-3">
-    <div class="col-12 col-lg-4">
-        <div class="card p-4">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-                <div class="fw-semibold">Levels</div>
-                <span class="badge text-bg-light">@Model.Levels.Count</span>
+<div class="mb-3">
+    <div class="d-flex flex-wrap align-items-end justify-content-between gap-2">
+        <div>
+            <div class="fw-semibold">Build your learning flow</div>
+            <div class="text-muted small">Levels → Modules → Lessons → Activities → Quizzes</div>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-dark" href="@Url.Action("Index", new { language = Model.Language })">Reset selection</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        function initPayloadSchemaEditor() {
+            const typeSelect = document.getElementById('activity-type-select');
+            const payloadFieldsEl = document.getElementById('payload-fields');
+            const payloadJsonEl = document.getElementById('payload-json');
+            const clearBtn = document.getElementById('payload-clear-btn');
+            const activityTitleEl = document.getElementById('activity-title');
+            const activityImageUrlEl = document.getElementById('activity-image-url');
+
+            if (!typeSelect || !payloadFieldsEl || !payloadJsonEl) return;
+
+            let currentSchema = null;
+
+        function safeAtob(b64) {
+            if (!b64) return '';
+            try { return atob(b64); } catch { return ''; }
+        }
+
+        function tryParseJson(text) {
+            if (!text) return null;
+            try { return JSON.parse(text); } catch { return null; }
+        }
+
+        function buildEmptyPayloadFromSchema(schema) {
+            const props = (schema && schema.properties) ? schema.properties : {};
+            const required = Array.isArray(schema && schema.required) ? schema.required : [];
+            const payload = {};
+
+            Object.keys(props).forEach((key) => {
+                const def = props[key] || {};
+                if (def.const !== undefined) {
+                    payload[key] = def.const;
+                    return;
+                }
+                if (def.default !== undefined) {
+                    payload[key] = def.default;
+                    return;
+                }
+
+                const t = def.type;
+                if (t === 'boolean') payload[key] = false;
+                else if (t === 'number' || t === 'integer') payload[key] = 0;
+                else if (t === 'array') payload[key] = [];
+                else if (t === 'object') payload[key] = {};
+                else payload[key] = required.includes(key) ? '' : '';
+            });
+
+            return payload;
+        }
+
+        function getUi(schema) {
+            return (schema && typeof schema.ui === 'object' && schema.ui) ? schema.ui : {};
+        }
+
+        function getOrderedKeys(schema) {
+            const props = (schema && schema.properties) ? schema.properties : {};
+            const ui = getUi(schema);
+            const order = Array.isArray(ui.order) ? ui.order.filter(k => k in props) : [];
+            const remaining = Object.keys(props).filter(k => !order.includes(k));
+            return [...order, ...remaining];
+        }
+
+        function getLabel(schema, key) {
+            const ui = getUi(schema);
+            if (ui.labels && typeof ui.labels[key] === 'string') return ui.labels[key];
+            return key;
+        }
+
+        function getHelp(schema, key) {
+            const ui = getUi(schema);
+            if (ui.help && typeof ui.help[key] === 'string') return ui.help[key];
+            return null;
+        }
+
+        function getPlaceholder(schema, key) {
+            const ui = getUi(schema);
+            if (ui.placeholders && typeof ui.placeholders[key] === 'string') return ui.placeholders[key];
+            return null;
+        }
+
+        function getWidget(schema, key) {
+            const ui = getUi(schema);
+            const w = ui.widgets && ui.widgets[key];
+            if (w && typeof w === 'object' && typeof w.type === 'string') return w;
+            return null;
+        }
+
+        function setPayloadJson(payloadObj) {
+            payloadJsonEl.value = JSON.stringify(payloadObj ?? {}, null, 2);
+        }
+
+        function getPayloadObjFromTextarea() {
+            const parsed = tryParseJson(payloadJsonEl.value.trim());
+            return parsed && typeof parsed === 'object' ? parsed : {};
+        }
+
+        function updatePayloadKey(key, value) {
+            const obj = getPayloadObjFromTextarea();
+            obj[key] = value;
+            setPayloadJson(obj);
+        }
+
+        function syncActivityFieldsIntoPayload() {
+            if (!currentSchema) return;
+            const ui = getUi(currentSchema);
+            const mapping = ui && typeof ui.activityFields === 'object' && ui.activityFields ? ui.activityFields : null;
+            if (!mapping) return;
+
+            const titleKey = typeof mapping.title === 'string' ? mapping.title : null;
+            const imageUrlKey = typeof mapping.imageUrl === 'string' ? mapping.imageUrl : null;
+
+            if (activityTitleEl && titleKey) {
+                updatePayloadKey(titleKey, activityTitleEl.value ?? '');
+            }
+
+            if (activityImageUrlEl && imageUrlKey) {
+                updatePayloadKey(imageUrlKey, activityImageUrlEl.value ?? '');
+            }
+        }
+
+        function renderField(schema, key, def, requiredKeys) {
+            const isRequired = requiredKeys.includes(key);
+            const widget = getWidget(schema, key);
+            const placeholder = getPlaceholder(schema, key);
+            const help = getHelp(schema, key);
+
+            const col = document.createElement('div');
+            col.className = 'col-12 col-md-6';
+
+            const label = document.createElement('label');
+            label.className = 'form-label';
+            label.textContent = getLabel(schema, key) + (isRequired ? ' *' : '');
+            col.appendChild(label);
+
+            const current = getPayloadObjFromTextarea();
+            const currentVal = current[key];
+
+            if (def && def.enum && Array.isArray(def.enum)) {
+                const select = document.createElement('select');
+                select.className = 'form-select';
+                def.enum.forEach((opt) => {
+                    const o = document.createElement('option');
+                    o.value = String(opt);
+                    o.textContent = String(opt);
+                    select.appendChild(o);
+                });
+                if (currentVal !== undefined && currentVal !== null) select.value = String(currentVal);
+                select.addEventListener('change', () => updatePayloadKey(key, select.value));
+                col.appendChild(select);
+            } else if ((widget && widget.type === 'textarea') || (def && def.type === 'string' && (def.maxLength || 0) > 120)) {
+                const ta = document.createElement('textarea');
+                ta.className = 'form-control';
+                ta.rows = (widget && typeof widget.rows === 'number') ? widget.rows : 3;
+                if (placeholder) ta.placeholder = placeholder;
+                ta.value = currentVal !== undefined && currentVal !== null ? String(currentVal) : '';
+                ta.addEventListener('input', () => updatePayloadKey(key, ta.value));
+                col.appendChild(ta);
+            } else if ((widget && widget.type === 'checkbox') || (def && def.type === 'boolean')) {
+                const wrap = document.createElement('div');
+                wrap.className = 'form-check';
+                const cb = document.createElement('input');
+                cb.className = 'form-check-input';
+                cb.type = 'checkbox';
+                cb.checked = Boolean(currentVal);
+                cb.addEventListener('change', () => updatePayloadKey(key, cb.checked));
+                const lbl = document.createElement('label');
+                lbl.className = 'form-check-label';
+                lbl.textContent = '';
+                wrap.appendChild(cb);
+                wrap.appendChild(lbl);
+                col.appendChild(wrap);
+            } else if ((widget && widget.type === 'number') || (def && (def.type === 'number' || def.type === 'integer'))) {
+                const input = document.createElement('input');
+                input.className = 'form-control';
+                input.type = 'number';
+                if (def && typeof def.minimum === 'number') input.min = String(def.minimum);
+                if (def && typeof def.maximum === 'number') input.max = String(def.maximum);
+                input.value = (currentVal !== undefined && currentVal !== null) ? String(currentVal) : '';
+                input.addEventListener('input', () => {
+                    const n = input.value === '' ? null : Number(input.value);
+                    updatePayloadKey(key, n);
+                });
+                col.appendChild(input);
+            } else {
+                const input = document.createElement('input');
+                input.className = 'form-control';
+                input.type = (widget && widget.type === 'url') || (def && def.format === 'uri') ? 'url' : 'text';
+                if (placeholder) input.placeholder = placeholder;
+                input.value = currentVal !== undefined && currentVal !== null ? String(currentVal) : '';
+                input.addEventListener('input', () => updatePayloadKey(key, input.value));
+                col.appendChild(input);
+            }
+
+            if (help) {
+                const helpEl = document.createElement('div');
+                helpEl.className = 'form-text';
+                helpEl.textContent = help;
+                col.appendChild(helpEl);
+            }
+
+            return col;
+        }
+
+        function renderPayloadEditorFromSchema(schema) {
+            payloadFieldsEl.innerHTML = '';
+
+            if (!schema || schema.type !== 'object' || !schema.properties) {
+                return;
+            }
+
+            const requiredKeys = Array.isArray(schema.required) ? schema.required : [];
+            const keys = getOrderedKeys(schema);
+
+            keys.forEach((key) => {
+                const def = schema.properties[key] || {};
+                const el = renderField(schema, key, def, requiredKeys);
+                payloadFieldsEl.appendChild(el);
+            });
+        }
+
+        function onTypeChanged() {
+            const opt = typeSelect.options[typeSelect.selectedIndex];
+            const schemaB64 = opt ? opt.getAttribute('data-schema-b64') : '';
+            const schemaText = safeAtob(schemaB64 || '');
+            const schema = tryParseJson(schemaText);
+            currentSchema = schema;
+
+            if (schema && payloadJsonEl.value.trim().length === 0) {
+                setPayloadJson(buildEmptyPayloadFromSchema(schema));
+            }
+
+            if (schema) {
+                if (payloadJsonEl.value.trim().length === 0) {
+                    setPayloadJson(buildEmptyPayloadFromSchema(schema));
+                } else {
+                    const existing = tryParseJson(payloadJsonEl.value.trim());
+                    if (!existing || typeof existing !== 'object') {
+                        setPayloadJson(buildEmptyPayloadFromSchema(schema));
+                    }
+                }
+            }
+
+            renderPayloadEditorFromSchema(schema);
+            syncActivityFieldsIntoPayload();
+        }
+
+        function onClear() {
+            payloadJsonEl.value = '';
+            onTypeChanged();
+        }
+
+            typeSelect.addEventListener('change', onTypeChanged);
+            payloadJsonEl.addEventListener('input', onTypeChanged);
+            if (clearBtn) clearBtn.addEventListener('click', onClear);
+
+            if (activityTitleEl) {
+                activityTitleEl.addEventListener('input', function () {
+                    syncActivityFieldsIntoPayload();
+                });
+            }
+            if (activityImageUrlEl) {
+                activityImageUrlEl.addEventListener('input', function () {
+                    syncActivityFieldsIntoPayload();
+                });
+            }
+
+            onTypeChanged();
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initPayloadSchemaEditor);
+        } else {
+            initPayloadSchemaEditor();
+        }
+    })();
+</script>
+
+<ul class="nav nav-pills gap-2" id="content-tabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-structure" data-bs-toggle="pill" data-bs-target="#pane-structure" type="button" role="tab">
+            Structure <span class="badge text-bg-light ms-1">@Model.Levels.Count</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-activity-types" data-bs-toggle="pill" data-bs-target="#pane-activity-types" type="button" role="tab">
+            Activity Types <span class="badge text-bg-light ms-1">@Model.ActivityTypes.Count</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-activities" data-bs-toggle="pill" data-bs-target="#pane-activities" type="button" role="tab">
+            Activities <span class="badge text-bg-light ms-1">@Model.Activities.Count</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-quizzes" data-bs-toggle="pill" data-bs-target="#pane-quizzes" type="button" role="tab">
+            Quizzes <span class="badge text-bg-light ms-1">@Model.Quizzes.Count</span>
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content mt-3" id="content-tab-content">
+    <div class="tab-pane fade show active" id="pane-structure" role="tabpanel" aria-labelledby="tab-structure" tabindex="0">
+        <div class="row g-3">
+            <div class="col-12 col-xl-4">
+                <div class="card">
+                    <div class="card-header bg-white d-flex align-items-center justify-content-between">
+                        <div class="fw-semibold">Levels</div>
+                        <span class="badge text-bg-light">@Model.Levels.Count</span>
+                    </div>
+                    <div class="card-body">
+                        <form method="get" class="mb-3">
+                            <label class="form-label">Language</label>
+                            <div class="input-group">
+                                <input name="language" value="@Model.Language" class="form-control" placeholder="English" />
+                                <button class="btn btn-dark" type="submit">Load</button>
+                            </div>
+                        </form>
+
+                        <form asp-action="CreateLevel" method="post" class="mb-3">
+                            @Html.AntiForgeryToken()
+                            <label class="form-label">Create level</label>
+                            <div class="row g-2">
+                                <div class="col-12 col-md-4">
+                                    <input name="Language" value="@Model.Language" class="form-control" placeholder="Language (e.g., Tamil)" />
+                                </div>
+                                <div class="col-12 col-md-8">
+                                    <div class="input-group">
+                                        <input name="Name" class="form-control" placeholder="Level name" />
+                                        <button class="btn btn-outline-dark" type="submit">Create</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+
+                        <div class="list-group overflow-auto" style="max-height: 420px;">
+                            @foreach (var lvl in Model.Levels)
+                            {
+                                var active = Model.SelectedLevelId == lvl.Id ? "active" : "";
+                                <div class="list-group-item @active">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="me-2 flex-grow-1">
+                                            <a class="text-decoration-none text-reset" href="@Url.Action("Index", new { language = Model.Language, levelId = lvl.Id })">
+                                                <div class="fw-semibold">@lvl.Name</div>
+                                                <div class="small text-muted">@lvl.Language</div>
+                                            </a>
+                                        </div>
+                                        <div class="d-flex gap-1">
+                                            @if (Model.SelectedLevelId == lvl.Id)
+                                            {
+                                                <span class="badge text-bg-dark">Selected</span>
+                                            }
+
+                                            <button class="btn btn-sm btn-outline-dark" type="button" data-bs-toggle="collapse" data-bs-target="#edit-level-@lvl.Id">
+                                                Edit
+                                            </button>
+                                            <form asp-action="DeleteLevel" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@lvl.Id" />
+                                                <input type="hidden" name="language" value="@Model.Language" />
+                                                <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                                            </form>
+                                        </div>
+                                    </div>
+
+                                    <div class="collapse mt-2" id="edit-level-@lvl.Id">
+                                        <form asp-action="UpdateLevel" method="post" class="border rounded p-2 bg-light">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="Id" value="@lvl.Id" />
+                                            <div class="row g-2">
+                                                <div class="col-12">
+                                                    <label class="form-label">Name</label>
+                                                    <input name="Name" class="form-control" value="@lvl.Name" />
+                                                </div>
+                                                <div class="col-12">
+                                                    <label class="form-label">Language</label>
+                                                    <input name="Language" class="form-control" value="@lvl.Language" />
+                                                </div>
+                                                <div class="col-12 d-flex justify-content-end">
+                                                    <button class="btn btn-dark" type="submit">Save</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <form method="get" class="mb-3">
-                <label class="form-label">Language</label>
-                <input name="language" value="@Model.Language" class="form-control" placeholder="English" />
-                <button class="btn btn-dark w-100 mt-2" type="submit">Load</button>
-            </form>
+            <div class="col-12 col-xl-4">
+                <div class="card">
+                    <div class="card-header bg-white d-flex align-items-center justify-content-between">
+                        <div class="fw-semibold">Modules</div>
+                        <span class="badge text-bg-light">@Model.Modules.Count</span>
+                    </div>
+                    <div class="card-body">
+                        @if (Model.SelectedLevelId == null)
+                        {
+                            <div class="alert alert-light border mb-0">
+                                Select a level to view modules.
+                            </div>
+                        }
+                        else
+                        {
+                            <form asp-action="CreateModule" method="post" class="mb-3">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="LevelId" value="@Model.SelectedLevelId" />
+                                <label class="form-label">Create module</label>
+                                <div class="input-group">
+                                    <input name="Name" class="form-control" placeholder="Module name" />
+                                    <button class="btn btn-outline-dark" type="submit">Create</button>
+                                </div>
+                            </form>
 
-            <div class="list-group">
-                @foreach (var lvl in Model.Levels)
+                            <div class="list-group overflow-auto" style="max-height: 420px;">
+                                @foreach (var m in Model.Modules)
+                                {
+                                    var active = Model.SelectedModuleId == m.Id ? "active" : "";
+                                    <div class="list-group-item @active">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="me-2 flex-grow-1">
+                                                <a class="text-decoration-none text-reset" href="@Url.Action("Index", new { language = Model.Language, levelId = Model.SelectedLevelId, moduleId = m.Id })">
+                                                    <div class="fw-semibold">@m.Name</div>
+                                                </a>
+                                            </div>
+                                            <div class="d-flex gap-1">
+                                                @if (Model.SelectedModuleId == m.Id)
+                                                {
+                                                    <span class="badge text-bg-dark">Selected</span>
+                                                }
+
+                                                <button class="btn btn-sm btn-outline-dark" type="button" data-bs-toggle="collapse" data-bs-target="#edit-module-@m.Id">
+                                                    Edit
+                                                </button>
+                                                <form asp-action="DeleteModule" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@m.Id" />
+                                                    <input type="hidden" name="levelId" value="@Model.SelectedLevelId" />
+                                                    <input type="hidden" name="language" value="@Model.Language" />
+                                                    <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                                                </form>
+                                            </div>
+                                        </div>
+
+                                        <div class="collapse mt-2" id="edit-module-@m.Id">
+                                            <form asp-action="UpdateModule" method="post" class="border rounded p-2 bg-light">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="Id" value="@m.Id" />
+                                                <input type="hidden" name="LevelId" value="@Model.SelectedLevelId" />
+                                                <input type="hidden" name="Language" value="@Model.Language" />
+                                                <div class="row g-2">
+                                                    <div class="col-12">
+                                                        <label class="form-label">Name</label>
+                                                        <input name="Name" class="form-control" value="@m.Name" />
+                                                    </div>
+                                                    <div class="col-12 d-flex justify-content-end">
+                                                        <button class="btn btn-dark" type="submit">Save</button>
+                                                    </div>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-xl-4">
+                <div class="card">
+                    <div class="card-header bg-white d-flex align-items-center justify-content-between">
+                        <div class="fw-semibold">Lessons</div>
+                        <span class="badge text-bg-light">@Model.Lessons.Count</span>
+                    </div>
+                    <div class="card-body">
+                        @if (Model.SelectedModuleId == null)
+                        {
+                            <div class="alert alert-light border mb-0">
+                                Select a module to view lessons.
+                            </div>
+                        }
+                        else
+                        {
+                            <form asp-action="CreateLesson" method="post" class="mb-3">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="ModuleId" value="@Model.SelectedModuleId" />
+
+                                <label class="form-label">Create lesson</label>
+                                <div class="row g-2">
+                                    <div class="col-12">
+                                        <input name="Title" class="form-control" placeholder="Lesson title" />
+                                    </div>
+                                    <div class="col-12">
+                                        <input name="Description" class="form-control" placeholder="Short description" />
+                                    </div>
+                                    <div class="col-12 col-md-4">
+                                        <input name="OrderIndex" type="number" class="form-control" placeholder="Order" value="0" />
+                                    </div>
+                                    <div class="col-12">
+                                        <textarea name="Content" class="form-control" rows="3" placeholder="Lesson content (optional)"></textarea>
+                                    </div>
+                                    <div class="col-12">
+                                        <button class="btn btn-outline-dark w-100" type="submit">Create</button>
+                                    </div>
+                                </div>
+                            </form>
+
+                            <div class="list-group overflow-auto" style="max-height: 320px;">
+                                @foreach (var l in Model.Lessons.OrderBy(x => x.OrderIndex))
+                                {
+                                    var active = Model.SelectedLessonId == l.Id ? "active" : "";
+                                    <a class="list-group-item list-group-item-action @active" href="@Url.Action("Index", new { language = Model.Language, levelId = Model.SelectedLevelId, moduleId = Model.SelectedModuleId, lessonId = l.Id })">
+                                        <div class="d-flex justify-content-between">
+                                            <div class="fw-semibold text-truncate" style="max-width: 280px;">@l.Title</div>
+                                            <span class="badge text-bg-light">@l.OrderIndex</span>
+                                        </div>
+                                        @if (!string.IsNullOrWhiteSpace(l.Description))
+                                        {
+                                            <div class="small text-muted text-truncate">@l.Description</div>
+                                        }
+                                    </a>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="pane-activity-types" role="tabpanel" aria-labelledby="tab-activity-types" tabindex="0">
+        <div class="card">
+            <div class="card-header bg-white d-flex align-items-center justify-content-between">
+                <div>
+                    <div class="fw-semibold">Activity Types</div>
+                    <div class="text-muted small">Define allowed activity types and the JSON schema your editors should follow.</div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="accordion mb-3" id="accordion-activity-type-create">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading-create-activity-type">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-create-activity-type">
+                                Create new activity type
+                            </button>
+                        </h2>
+                        <div id="collapse-create-activity-type" class="accordion-collapse collapse show" data-bs-parent="#accordion-activity-type-create">
+                            <div class="accordion-body">
+                                <form asp-action="CreateActivityType" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="Language" value="@Model.Language" />
+                                    <input type="hidden" name="LevelId" value="@Model.SelectedLevelId" />
+                                    <input type="hidden" name="ModuleId" value="@Model.SelectedModuleId" />
+                                    <input type="hidden" name="LessonId" value="@Model.SelectedLessonId" />
+                                    <input type="hidden" name="QuizId" value="@Model.SelectedQuizId" />
+
+                                    <div class="row g-2">
+                                        <div class="col-12 col-md-3">
+                                            <label class="form-label">Key</label>
+                                            <input name="Key" class="form-control" placeholder="FLASHCARD" />
+                                            <div class="form-text">Use uppercase keys. Example: FLASHCARD</div>
+                                        </div>
+                                        <div class="col-12 col-md-4">
+                                            <label class="form-label">Display name</label>
+                                            <input name="DisplayName" class="form-control" placeholder="Flashcard" />
+                                        </div>
+                                        <div class="col-12 col-md-5">
+                                            <label class="form-label">Description</label>
+                                            <input name="Description" class="form-control" placeholder="Optional" />
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label">Schema JSON (optional)</label>
+                                            <textarea name="SchemaJson" class="form-control font-monospace" rows="4" placeholder='{"fields":[{"name":"title","type":"string","required":true}]}'></textarea>
+                                        </div>
+                                        <div class="col-12">
+                                            <button class="btn btn-dark" type="submit">Create</button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead>
+                        <tr>
+                            <th>Key</th>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Schema</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var t in Model.ActivityTypes.OrderBy(x => x.DisplayName))
+                        {
+                            <tr>
+                                <td class="fw-semibold">@t.Key</td>
+                                <td>@t.DisplayName</td>
+                                <td class="text-muted small">@t.Description</td>
+                                <td>
+                                    <div class="text-muted small text-truncate" style="max-width: 520px;">@t.SchemaJson</div>
+                                </td>
+                                <td class="text-end">
+                                    <form asp-action="DeleteActivityType" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@t.Id" />
+                                        <input type="hidden" name="language" value="@Model.Language" />
+                                        <input type="hidden" name="levelId" value="@Model.SelectedLevelId" />
+                                        <input type="hidden" name="moduleId" value="@Model.SelectedModuleId" />
+                                        <input type="hidden" name="lessonId" value="@Model.SelectedLessonId" />
+                                        <input type="hidden" name="quizId" value="@Model.SelectedQuizId" />
+                                        <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                                    </form>
+
+                                    <button class="btn btn-sm btn-outline-dark ms-1" type="button" data-bs-toggle="collapse" data-bs-target="#edit-type-@t.Id">
+                                        Edit
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr class="collapse" id="edit-type-@t.Id">
+                                <td colspan="5">
+                                    <form asp-action="UpdateActivityType" method="post" class="border rounded p-3 bg-light">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="Id" value="@t.Id" />
+                                        <input type="hidden" name="Language" value="@Model.Language" />
+                                        <input type="hidden" name="LevelId" value="@Model.SelectedLevelId" />
+                                        <input type="hidden" name="ModuleId" value="@Model.SelectedModuleId" />
+                                        <input type="hidden" name="LessonId" value="@Model.SelectedLessonId" />
+                                        <input type="hidden" name="QuizId" value="@Model.SelectedQuizId" />
+
+                                        <div class="row g-2">
+                                            <div class="col-12 col-md-3">
+                                                <label class="form-label">Key</label>
+                                                <input name="Key" class="form-control" value="@t.Key" />
+                                            </div>
+                                            <div class="col-12 col-md-4">
+                                                <label class="form-label">Display name</label>
+                                                <input name="DisplayName" class="form-control" value="@t.DisplayName" />
+                                            </div>
+                                            <div class="col-12 col-md-5">
+                                                <label class="form-label">Description</label>
+                                                <input name="Description" class="form-control" value="@t.Description" />
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label">Schema JSON (optional)</label>
+                                                <textarea name="SchemaJson" class="form-control font-monospace" rows="6">@t.SchemaJson</textarea>
+                                            </div>
+                                            <div class="col-12">
+                                                <button class="btn btn-dark" type="submit">Save</button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="pane-activities" role="tabpanel" aria-labelledby="tab-activities" tabindex="0">
+        <div class="card">
+            <div class="card-header bg-white d-flex align-items-center justify-content-between">
+                <div>
+                    <div class="fw-semibold">Activities</div>
+                    <div class="text-muted small">Create activities under the selected lesson.</div>
+                </div>
+            </div>
+            <div class="card-body">
+                @if (Model.SelectedLessonId == null)
                 {
-                    var active = Model.SelectedLevelId == lvl.Id ? "active" : "";
-                    <a class="list-group-item list-group-item-action @active" href="@Url.Action("Index", new { language = Model.Language, levelId = lvl.Id })">
-                        <div class="fw-semibold">@lvl.Name</div>
-                        <div class="small text-muted">@lvl.Language</div>
-                        <div class="small text-muted">@lvl.Id</div>
-                    </a>
+                    <div class="alert alert-light border mb-0">Select a lesson in the Structure tab.</div>
+                }
+                else
+                {
+                    <form asp-action="CreateActivity" method="post" class="mb-3">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="LessonId" value="@Model.SelectedLessonId" />
+
+                        <div class="row g-2">
+                            <div class="col-12 col-md-3">
+                                <label class="form-label">Type</label>
+                                <select id="activity-type-select" name="Type" class="form-select">
+                                    @if (Model.ActivityTypes.Count == 0)
+                                    {
+                                        <option value="IMAGE_MATCH">IMAGE_MATCH</option>
+                                        <option value="FLASHCARD">FLASHCARD</option>
+                                        <option value="LISTEN_REPEAT">LISTEN_REPEAT</option>
+                                        <option value="READ_ALOUD">READ_ALOUD</option>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var t in Model.ActivityTypes.OrderBy(x => x.DisplayName))
+                                        {
+                                            var schemaB64 = string.IsNullOrWhiteSpace(t.SchemaJson)
+                                                ? string.Empty
+                                                : Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(t.SchemaJson));
+                                            <option value="@t.Key" data-schema-b64="@schemaB64">@t.DisplayName (@t.Key)</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-5">
+                                <label class="form-label">Title</label>
+                                <input id="activity-title" name="Title" class="form-control" placeholder="Activity title" />
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label class="form-label">Image URL</label>
+                                <input id="activity-image-url" name="ImageUrl" class="form-control" placeholder="https://..." />
+                            </div>
+                            <div class="col-12 col-md-2">
+                                <label class="form-label">Order</label>
+                                <input name="OrderIndex" type="number" class="form-control" value="0" />
+                            </div>
+                            <div class="col-12">
+                                <div class="border rounded p-3 bg-light">
+                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                        <div class="fw-semibold">Payload fields</div>
+                                        <button id="payload-clear-btn" class="btn btn-sm btn-outline-dark" type="button">Clear</button>
+                                    </div>
+                                    <div id="payload-fields" class="row g-2"></div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Payload JSON</label>
+                                <textarea id="payload-json" name="PayloadJson" class="form-control font-monospace" rows="8" placeholder='{"key":"value"}'></textarea>
+                                <div class="form-text">Auto-generated from fields above. You can still edit manually if needed.</div>
+                            </div>
+                            <div class="col-12">
+                                <button class="btn btn-dark" type="submit">Create activity</button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead>
+                            <tr>
+                                <th>Order</th>
+                                <th>Type</th>
+                                <th>Title</th>
+                                <th>Image</th>
+                                <th>ID</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            @foreach (var a in Model.Activities.OrderBy(x => x.OrderIndex))
+                            {
+                                <tr>
+                                    <td><span class="badge text-bg-light">@a.OrderIndex</span></td>
+                                    <td><span class="badge text-bg-dark">@a.Type</span></td>
+                                    <td class="fw-semibold">@a.Title</td>
+                                    <td>
+                                        @if (!string.IsNullOrWhiteSpace(a.ImageUrl))
+                                        {
+                                            <a class="link-dark" href="@a.ImageUrl" target="_blank">Open</a>
+                                        }
+                                    </td>
+                                    <td class="text-muted small">@a.Id</td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
                 }
             </div>
         </div>
     </div>
 
-    <div class="col-12 col-lg-4">
-        <div class="card p-4">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-                <div class="fw-semibold">Modules</div>
-                <span class="badge text-bg-light">@Model.Modules.Count</span>
-            </div>
+    <div class="tab-pane fade" id="pane-quizzes" role="tabpanel" aria-labelledby="tab-quizzes" tabindex="0">
+        <div class="row g-3">
+            <div class="col-12 col-xl-5">
+                <div class="card">
+                    <div class="card-header bg-white d-flex align-items-center justify-content-between">
+                        <div>
+                            <div class="fw-semibold">Quizzes</div>
+                            <div class="text-muted small">Create quizzes under the selected lesson.</div>
+                        </div>
+                        <span class="badge text-bg-light">@Model.Quizzes.Count</span>
+                    </div>
+                    <div class="card-body">
+                        @if (Model.SelectedLessonId == null)
+                        {
+                            <div class="alert alert-light border mb-0">Select a lesson in the Structure tab.</div>
+                        }
+                        else
+                        {
+                            <form asp-action="CreateQuiz" method="post" class="mb-3">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="LessonId" value="@Model.SelectedLessonId" />
+                                <label class="form-label">Create quiz</label>
+                                <div class="input-group">
+                                    <input name="Title" class="form-control" placeholder="Quiz title" />
+                                    <button class="btn btn-dark" type="submit">Create</button>
+                                </div>
+                            </form>
 
-            @if (Model.SelectedLevelId == null)
-            {
-                <div class="text-muted small">Select a level to view modules.</div>
-            }
-            else
-            {
-                <form asp-action="CreateModule" method="post" class="mb-3">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="LevelId" value="@Model.SelectedLevelId" />
-                    <label class="form-label">Create module</label>
-                    <input name="Name" class="form-control" placeholder="Module name" />
-                    <button class="btn btn-outline-dark w-100 mt-2" type="submit">Create</button>
-                </form>
+                            <div class="list-group overflow-auto" style="max-height: 420px;">
+                                @foreach (var q in Model.Quizzes)
+                                {
+                                    var active = Model.SelectedQuizId == q.Id ? "active" : "";
+                                    <div class="list-group-item @active">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="me-2 flex-grow-1">
+                                                <a class="text-decoration-none text-reset" href="@Url.Action("Index", new { language = Model.Language, levelId = Model.SelectedLevelId, moduleId = Model.SelectedModuleId, lessonId = Model.SelectedLessonId, quizId = q.Id })">
+                                                    <div class="fw-semibold">@q.Title</div>
+                                                    <div class="small text-muted">@q.Id</div>
+                                                </a>
+                                            </div>
+                                            <div class="d-flex gap-1">
+                                                @if (Model.SelectedQuizId == q.Id)
+                                                {
+                                                    <span class="badge text-bg-dark">Selected</span>
+                                                }
 
-                <div class="list-group">
-                    @foreach (var m in Model.Modules)
-                    {
-                        var active = Model.SelectedModuleId == m.Id ? "active" : "";
-                        <a class="list-group-item list-group-item-action @active" href="@Url.Action("Index", new { language = Model.Language, levelId = Model.SelectedLevelId, moduleId = m.Id })">
-                            <div class="fw-semibold">@m.Name</div>
-                            <div class="small text-muted">@m.Id</div>
-                        </a>
-                    }
-                </div>
-            }
-        </div>
-    </div>
+                                                <button class="btn btn-sm btn-outline-dark" type="button" data-bs-toggle="collapse" data-bs-target="#edit-quiz-@q.Id">
+                                                    Edit
+                                                </button>
+                                                <form asp-action="DeleteQuiz" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@q.Id" />
+                                                    <input type="hidden" name="language" value="@Model.Language" />
+                                                    <input type="hidden" name="levelId" value="@Model.SelectedLevelId" />
+                                                    <input type="hidden" name="moduleId" value="@Model.SelectedModuleId" />
+                                                    <input type="hidden" name="lessonId" value="@Model.SelectedLessonId" />
+                                                    <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                                                </form>
+                                            </div>
+                                        </div>
 
-    <div class="col-12 col-lg-4">
-        <div class="card p-4">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-                <div class="fw-semibold">Lessons</div>
-                <span class="badge text-bg-light">@Model.Lessons.Count</span>
-            </div>
-
-            @if (Model.SelectedModuleId == null)
-            {
-                <div class="text-muted small">Select a module to view lessons.</div>
-            }
-            else
-            {
-                <form asp-action="CreateLesson" method="post" class="mb-3">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="ModuleId" value="@Model.SelectedModuleId" />
-
-                    <label class="form-label">Create lesson</label>
-                    <input name="Title" class="form-control mb-2" placeholder="Lesson title" />
-                    <input name="Description" class="form-control mb-2" placeholder="Short description" />
-                    <input name="OrderIndex" type="number" class="form-control mb-2" placeholder="Order" value="0" />
-                    <textarea name="Content" class="form-control mb-2" rows="4" placeholder="Lesson content (optional)"></textarea>
-
-                    <button class="btn btn-outline-dark w-100" type="submit">Create</button>
-                </form>
-
-                <div class="list-group">
-                    @foreach (var l in Model.Lessons.OrderBy(x => x.OrderIndex))
-                    {
-                        var active = Model.SelectedLessonId == l.Id ? "active" : "";
-                        <a class="list-group-item list-group-item-action @active" href="@Url.Action("Index", new { language = Model.Language, levelId = Model.SelectedLevelId, moduleId = Model.SelectedModuleId, lessonId = l.Id })">
-                            <div class="d-flex justify-content-between">
-                                <div class="fw-semibold">@l.Title</div>
-                                <span class="badge text-bg-light">@l.OrderIndex</span>
+                                        <div class="collapse mt-2" id="edit-quiz-@q.Id">
+                                            <form asp-action="UpdateQuiz" method="post" class="border rounded p-2 bg-light">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="Id" value="@q.Id" />
+                                                <input type="hidden" name="LessonId" value="@Model.SelectedLessonId" />
+                                                <input type="hidden" name="Language" value="@Model.Language" />
+                                                <input type="hidden" name="LevelId" value="@Model.SelectedLevelId" />
+                                                <input type="hidden" name="ModuleId" value="@Model.SelectedModuleId" />
+                                                <div class="row g-2">
+                                                    <div class="col-12">
+                                                        <label class="form-label">Title</label>
+                                                        <input name="Title" class="form-control" value="@q.Title" />
+                                                    </div>
+                                                    <div class="col-12 d-flex justify-content-end">
+                                                        <button class="btn btn-dark" type="submit">Save</button>
+                                                    </div>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                }
                             </div>
-                            @if (!string.IsNullOrWhiteSpace(l.Description))
-                            {
-                                <div class="small text-muted">@l.Description</div>
-                            }
-                            <div class="small text-muted">@l.Id</div>
-                        </a>
-                    }
+                        }
+                    </div>
                 </div>
-            }
-        </div>
-    </div>
-
-    <div class="col-12">
-        <div class="card p-4">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-                <div class="fw-semibold">Activities</div>
-                <span class="badge text-bg-light">@Model.Activities.Count</span>
             </div>
 
-            @if (Model.SelectedLessonId == null)
-            {
-                <div class="text-muted small">Select a lesson to view and create activities.</div>
-            }
-            else
-            {
-                <form asp-action="CreateActivity" method="post" class="mb-3">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="LessonId" value="@Model.SelectedLessonId" />
-
-                    <div class="row g-2">
-                        <div class="col-12 col-md-3">
-                            <label class="form-label">Type</label>
-                            <select name="Type" class="form-select">
-                                <option value="IMAGE_MATCH">IMAGE_MATCH</option>
-                                <option value="FLASHCARD">FLASHCARD</option>
-                                <option value="LISTEN_REPEAT">LISTEN_REPEAT</option>
-                                <option value="READ_ALOUD">READ_ALOUD</option>
-                            </select>
+            <div class="col-12 col-xl-7">
+                <div class="card">
+                    <div class="card-header bg-white d-flex align-items-center justify-content-between">
+                        <div>
+                            <div class="fw-semibold">Quiz Questions</div>
+                            <div class="text-muted small">Create questions under the selected quiz.</div>
                         </div>
-                        <div class="col-12 col-md-5">
-                            <label class="form-label">Title</label>
-                            <input name="Title" class="form-control" placeholder="Activity title" />
-                        </div>
-                        <div class="col-12 col-md-4">
-                            <label class="form-label">Image URL</label>
-                            <input name="ImageUrl" class="form-control" placeholder="https://..." />
-                        </div>
-                        <div class="col-12 col-md-2">
-                            <label class="form-label">Order</label>
-                            <input name="OrderIndex" type="number" class="form-control" value="0" />
-                        </div>
-                        <div class="col-12 col-md-10">
-                            <label class="form-label">Payload JSON (optional)</label>
-                            <input name="PayloadJson" class="form-control" placeholder='{"key":"value"}' />
-                        </div>
-                        <div class="col-12">
-                            <button class="btn btn-outline-dark" type="submit">Create activity</button>
-                        </div>
+                        <span class="badge text-bg-light">@Model.QuizQuestions.Count</span>
                     </div>
-                </form>
-
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle">
-                        <thead>
-                        <tr>
-                            <th>Order</th>
-                            <th>Type</th>
-                            <th>Title</th>
-                            <th>Image</th>
-                            <th>ID</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        @foreach (var a in Model.Activities.OrderBy(x => x.OrderIndex))
+                    <div class="card-body">
+                        @if (Model.SelectedQuizId == null)
                         {
-                            <tr>
-                                <td><span class="badge text-bg-light">@a.OrderIndex</span></td>
-                                <td><span class="badge text-bg-dark">@a.Type</span></td>
-                                <td class="fw-semibold">@a.Title</td>
-                                <td>
-                                    @if (!string.IsNullOrWhiteSpace(a.ImageUrl))
+                            <div class="alert alert-light border mb-0">Select a quiz to view and create questions.</div>
+                        }
+                        else
+                        {
+                            <form asp-action="CreateQuizQuestion" method="post" class="mb-3">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="QuizId" value="@Model.SelectedQuizId" />
+
+                                <div class="row g-2">
+                                    <div class="col-12">
+                                        <label class="form-label">Prompt</label>
+                                        <input name="Prompt" class="form-control" placeholder="Question prompt" />
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label">Option A</label>
+                                        <input name="OptionA" class="form-control" />
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label">Option B</label>
+                                        <input name="OptionB" class="form-control" />
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label">Option C</label>
+                                        <input name="OptionC" class="form-control" />
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label">Option D</label>
+                                        <input name="OptionD" class="form-control" />
+                                    </div>
+                                    <div class="col-12 col-md-3">
+                                        <label class="form-label">Correct</label>
+                                        <select name="CorrectOption" class="form-select">
+                                            <option value="A">A</option>
+                                            <option value="B">B</option>
+                                            <option value="C">C</option>
+                                            <option value="D">D</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12">
+                                        <button class="btn btn-dark" type="submit">Create question</button>
+                                    </div>
+                                </div>
+                            </form>
+
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle">
+                                    <thead>
+                                    <tr>
+                                        <th>Prompt</th>
+                                        <th>Correct</th>
+                                        <th>ID</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    @foreach (var qq in Model.QuizQuestions)
                                     {
-                                        <a href="@a.ImageUrl" target="_blank">open</a>
+                                        <tr>
+                                            <td class="fw-semibold">@qq.Prompt</td>
+                                            <td><span class="badge text-bg-dark">@qq.CorrectOption</span></td>
+                                            <td class="text-muted small">@qq.Id</td>
+                                            <td class="text-end">
+                                                <button class="btn btn-sm btn-outline-dark" type="button" data-bs-toggle="collapse" data-bs-target="#edit-question-@qq.Id">Edit</button>
+                                                <form asp-action="DeleteQuizQuestion" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@qq.Id" />
+                                                    <input type="hidden" name="quizId" value="@Model.SelectedQuizId" />
+                                                    <input type="hidden" name="language" value="@Model.Language" />
+                                                    <input type="hidden" name="levelId" value="@Model.SelectedLevelId" />
+                                                    <input type="hidden" name="moduleId" value="@Model.SelectedModuleId" />
+                                                    <input type="hidden" name="lessonId" value="@Model.SelectedLessonId" />
+                                                    <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                        <tr class="collapse" id="edit-question-@qq.Id">
+                                            <td colspan="4">
+                                                <form asp-action="UpdateQuizQuestion" method="post" class="border rounded p-3 bg-light">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="Id" value="@qq.Id" />
+                                                    <input type="hidden" name="QuizId" value="@Model.SelectedQuizId" />
+                                                    <input type="hidden" name="Language" value="@Model.Language" />
+                                                    <input type="hidden" name="LevelId" value="@Model.SelectedLevelId" />
+                                                    <input type="hidden" name="ModuleId" value="@Model.SelectedModuleId" />
+                                                    <input type="hidden" name="LessonId" value="@Model.SelectedLessonId" />
+
+                                                    <div class="row g-2">
+                                                        <div class="col-12">
+                                                            <label class="form-label">Prompt</label>
+                                                            <input name="Prompt" class="form-control" value="@qq.Prompt" />
+                                                        </div>
+                                                        <div class="col-12 col-md-6">
+                                                            <label class="form-label">Option A</label>
+                                                            <input name="OptionA" class="form-control" value="@qq.OptionA" />
+                                                        </div>
+                                                        <div class="col-12 col-md-6">
+                                                            <label class="form-label">Option B</label>
+                                                            <input name="OptionB" class="form-control" value="@qq.OptionB" />
+                                                        </div>
+                                                        <div class="col-12 col-md-6">
+                                                            <label class="form-label">Option C</label>
+                                                            <input name="OptionC" class="form-control" value="@qq.OptionC" />
+                                                        </div>
+                                                        <div class="col-12 col-md-6">
+                                                            <label class="form-label">Option D</label>
+                                                            <input name="OptionD" class="form-control" value="@qq.OptionD" />
+                                                        </div>
+                                                        <div class="col-12 col-md-3">
+                                                            <label class="form-label">Correct</label>
+                                                            <select name="CorrectOption" class="form-select">
+                                                                <option value="A" selected="@(qq.CorrectOption == "A")">A</option>
+                                                                <option value="B" selected="@(qq.CorrectOption == "B")">B</option>
+                                                                <option value="C" selected="@(qq.CorrectOption == "C")">C</option>
+                                                                <option value="D" selected="@(qq.CorrectOption == "D")">D</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-12 d-flex justify-content-end">
+                                                            <button class="btn btn-dark" type="submit">Save</button>
+                                                        </div>
+                                                    </div>
+                                                </form>
+                                            </td>
+                                        </tr>
                                     }
-                                </td>
-                                <td class="text-muted small">@a.Id</td>
-                            </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         }
-                        </tbody>
-                    </table>
-                </div>
-            }
-        </div>
-    </div>
-
-    <div class="col-12">
-        <div class="card p-4">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-                <div class="fw-semibold">Quizzes</div>
-                <span class="badge text-bg-light">@Model.Quizzes.Count</span>
-            </div>
-
-            @if (Model.SelectedLessonId == null)
-            {
-                <div class="text-muted small">Select a lesson to view and create quizzes.</div>
-            }
-            else
-            {
-                <form asp-action="CreateQuiz" method="post" class="mb-3">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="LessonId" value="@Model.SelectedLessonId" />
-                    <label class="form-label">Create quiz</label>
-                    <div class="input-group">
-                        <input name="Title" class="form-control" placeholder="Quiz title" />
-                        <button class="btn btn-outline-dark" type="submit">Create</button>
                     </div>
-                </form>
-
-                <div class="list-group">
-                    @foreach (var q in Model.Quizzes)
-                    {
-                        var active = Model.SelectedQuizId == q.Id ? "active" : "";
-                        <a class="list-group-item list-group-item-action @active" href="@Url.Action("Index", new { language = Model.Language, levelId = Model.SelectedLevelId, moduleId = Model.SelectedModuleId, lessonId = Model.SelectedLessonId, quizId = q.Id })">
-                            <div class="fw-semibold">@q.Title</div>
-                            <div class="small text-muted">@q.Id</div>
-                        </a>
-                    }
                 </div>
-            }
-        </div>
-    </div>
-
-    <div class="col-12">
-        <div class="card p-4">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-                <div class="fw-semibold">Quiz Questions</div>
-                <span class="badge text-bg-light">@Model.QuizQuestions.Count</span>
             </div>
-
-            @if (Model.SelectedQuizId == null)
-            {
-                <div class="text-muted small">Select a quiz to view and create questions.</div>
-            }
-            else
-            {
-                <form asp-action="CreateQuizQuestion" method="post" class="mb-3">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="QuizId" value="@Model.SelectedQuizId" />
-
-                    <div class="row g-2">
-                        <div class="col-12">
-                            <label class="form-label">Prompt</label>
-                            <input name="Prompt" class="form-control" placeholder="Question prompt" />
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">Option A</label>
-                            <input name="OptionA" class="form-control" />
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">Option B</label>
-                            <input name="OptionB" class="form-control" />
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">Option C</label>
-                            <input name="OptionC" class="form-control" />
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">Option D</label>
-                            <input name="OptionD" class="form-control" />
-                        </div>
-                        <div class="col-12 col-md-3">
-                            <label class="form-label">Correct</label>
-                            <select name="CorrectOption" class="form-select">
-                                <option value="A">A</option>
-                                <option value="B">B</option>
-                                <option value="C">C</option>
-                                <option value="D">D</option>
-                            </select>
-                        </div>
-                        <div class="col-12">
-                            <button class="btn btn-outline-dark" type="submit">Create question</button>
-                        </div>
-                    </div>
-                </form>
-
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle">
-                        <thead>
-                        <tr>
-                            <th>Prompt</th>
-                            <th>Correct</th>
-                            <th>ID</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        @foreach (var qq in Model.QuizQuestions)
-                        {
-                            <tr>
-                                <td class="fw-semibold">@qq.Prompt</td>
-                                <td><span class="badge text-bg-dark">@qq.CorrectOption</span></td>
-                                <td class="text-muted small">@qq.Id</td>
-                            </tr>
-                        }
-                        </tbody>
-                    </table>
-                </div>
-            }
         </div>
     </div>
 </div>

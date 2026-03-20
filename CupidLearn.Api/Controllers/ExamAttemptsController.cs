@@ -9,7 +9,7 @@ namespace CupidLearn.Api.Controllers;
 
 [ApiController]
 [Authorize]
-[Route("api/v1/progress")]
+[Route("api/progress")]
 public class ExamAttemptsController(IExamAttemptService examAttemptService) : ControllerBase
 {
     [HttpGet("exam-attempts/{childId:guid}/{examId:guid}")]

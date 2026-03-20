@@ -10,6 +10,80 @@ namespace CupidLearn.Infrastructure.Services;
 
 public class ContentAdminService(AppDbContext db) : IContentAdminService
 {
+    public async Task<ActivityTypeResponse> CreateActivityTypeAsync(ActivityTypeCreateRequest request, CancellationToken ct)
+    {
+        var key = request.Key.Trim().ToUpperInvariant();
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            throw new BadRequestException("Key is required");
+        }
+
+        var exists = await db.ActivityTypes.AnyAsync(x => x.Key == key, ct);
+        if (exists)
+        {
+            throw new ConflictException("Activity type key already exists");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var type = new ActivityType
+        {
+            Key = key,
+            DisplayName = request.DisplayName.Trim(),
+            Description = request.Description,
+            SchemaJson = request.Schema.HasValue ? JsonSerializer.Serialize(request.Schema.Value) : null,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+
+        db.ActivityTypes.Add(type);
+        await db.SaveChangesAsync(ct);
+
+        return ToActivityTypeResponse(type);
+    }
+
+    public async Task<ActivityTypeResponse> UpdateActivityTypeAsync(Guid activityTypeId, ActivityTypeUpdateRequest request, CancellationToken ct)
+    {
+        var type = await db.ActivityTypes.FirstOrDefaultAsync(x => x.Id == activityTypeId, ct);
+        if (type == null)
+        {
+            throw new NotFoundException("Activity type not found");
+        }
+
+        var key = request.Key.Trim().ToUpperInvariant();
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            throw new BadRequestException("Key is required");
+        }
+
+        var keyTaken = await db.ActivityTypes.AnyAsync(x => x.Id != activityTypeId && x.Key == key, ct);
+        if (keyTaken)
+        {
+            throw new ConflictException("Activity type key already exists");
+        }
+
+        type.Key = key;
+        type.DisplayName = request.DisplayName.Trim();
+        type.Description = request.Description;
+        type.SchemaJson = request.Schema.HasValue ? JsonSerializer.Serialize(request.Schema.Value) : null;
+        type.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await db.SaveChangesAsync(ct);
+
+        return ToActivityTypeResponse(type);
+    }
+
+    public async Task DeleteActivityTypeAsync(Guid activityTypeId, CancellationToken ct)
+    {
+        var type = await db.ActivityTypes.FirstOrDefaultAsync(x => x.Id == activityTypeId, ct);
+        if (type == null)
+        {
+            return;
+        }
+
+        db.ActivityTypes.Remove(type);
+        await db.SaveChangesAsync(ct);
+    }
+
     public async Task<ModuleResponse> CreateModuleAsync(ModuleCreateV2Request request, CancellationToken ct)
     {
         var levelExists = await db.Levels.AnyAsync(x => x.Id == request.LevelId, ct);
@@ -28,6 +102,46 @@ public class ContentAdminService(AppDbContext db) : IContentAdminService
         await db.SaveChangesAsync(ct);
 
         return new ModuleResponse(module.Id, module.LevelId, module.Name);
+    }
+
+    public async Task<ModuleResponse> UpdateModuleAsync(Guid moduleId, ModuleUpdateRequest request, CancellationToken ct)
+    {
+        var module = await db.Modules.FirstOrDefaultAsync(x => x.Id == moduleId, ct);
+        if (module == null)
+        {
+            throw new NotFoundException("Module not found");
+        }
+
+        module.Name = request.Name.Trim();
+        await db.SaveChangesAsync(ct);
+
+        return new ModuleResponse(module.Id, module.LevelId, module.Name);
+    }
+
+    public async Task DeleteModuleAsync(Guid moduleId, CancellationToken ct)
+    {
+        var module = await db.Modules.FirstOrDefaultAsync(x => x.Id == moduleId, ct);
+        if (module == null)
+        {
+            return;
+        }
+
+        var lessons = await db.Lessons.Where(x => x.ModuleId == moduleId).ToListAsync(ct);
+        var lessonIds = lessons.Select(x => x.Id).ToList();
+
+        var activities = await db.LessonActivities.Where(x => lessonIds.Contains(x.LessonId)).ToListAsync(ct);
+
+        var quizzes = await db.Quizzes.Where(x => lessonIds.Contains(x.LessonId)).ToListAsync(ct);
+        var quizIds = quizzes.Select(x => x.Id).ToList();
+        var questions = await db.QuizQuestions.Where(x => quizIds.Contains(x.QuizId)).ToListAsync(ct);
+
+        db.QuizQuestions.RemoveRange(questions);
+        db.Quizzes.RemoveRange(quizzes);
+        db.LessonActivities.RemoveRange(activities);
+        db.Lessons.RemoveRange(lessons);
+        db.Modules.Remove(module);
+
+        await db.SaveChangesAsync(ct);
     }
 
     public async Task<LessonResponse> CreateLessonAsync(Guid moduleId, LessonCreateRequest request, CancellationToken ct)
@@ -172,6 +286,35 @@ public class ContentAdminService(AppDbContext db) : IContentAdminService
         return new QuizResponse(quiz.Id, quiz.LessonId, quiz.Title);
     }
 
+    public async Task<QuizResponse> UpdateQuizAsync(Guid quizId, QuizUpdateRequest request, CancellationToken ct)
+    {
+        var quiz = await db.Quizzes.FirstOrDefaultAsync(x => x.Id == quizId, ct);
+        if (quiz == null)
+        {
+            throw new NotFoundException("Quiz not found");
+        }
+
+        quiz.Title = request.Title.Trim();
+        await db.SaveChangesAsync(ct);
+
+        return new QuizResponse(quiz.Id, quiz.LessonId, quiz.Title);
+    }
+
+    public async Task DeleteQuizAsync(Guid quizId, CancellationToken ct)
+    {
+        var quiz = await db.Quizzes.FirstOrDefaultAsync(x => x.Id == quizId, ct);
+        if (quiz == null)
+        {
+            return;
+        }
+
+        var questions = await db.QuizQuestions.Where(x => x.QuizId == quizId).ToListAsync(ct);
+        db.QuizQuestions.RemoveRange(questions);
+        db.Quizzes.Remove(quiz);
+
+        await db.SaveChangesAsync(ct);
+    }
+
     public async Task<QuizQuestionResponse> CreateQuizQuestionAsync(Guid quizId, QuizQuestionCreateRequest request, CancellationToken ct)
     {
         var quizExists = await db.Quizzes.AnyAsync(x => x.Id == quizId, ct);
@@ -204,6 +347,45 @@ public class ContentAdminService(AppDbContext db) : IContentAdminService
         return new QuizQuestionResponse(q.Id, q.QuizId, q.Prompt, q.OptionA, q.OptionB, q.OptionC, q.OptionD, q.CorrectOption, q.CreatedAt, q.UpdatedAt);
     }
 
+    public async Task<QuizQuestionResponse> UpdateQuizQuestionAsync(Guid questionId, QuizQuestionUpdateRequest request, CancellationToken ct)
+    {
+        var q = await db.QuizQuestions.FirstOrDefaultAsync(x => x.Id == questionId, ct);
+        if (q == null)
+        {
+            throw new NotFoundException("Quiz question not found");
+        }
+
+        var correct = request.CorrectOption.Trim().ToUpperInvariant();
+        if (correct is not ("A" or "B" or "C" or "D"))
+        {
+            throw new BadRequestException("correctOption must be A, B, C, or D");
+        }
+
+        q.Prompt = request.Prompt.Trim();
+        q.OptionA = request.OptionA.Trim();
+        q.OptionB = request.OptionB.Trim();
+        q.OptionC = request.OptionC.Trim();
+        q.OptionD = request.OptionD.Trim();
+        q.CorrectOption = correct;
+        q.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await db.SaveChangesAsync(ct);
+
+        return new QuizQuestionResponse(q.Id, q.QuizId, q.Prompt, q.OptionA, q.OptionB, q.OptionC, q.OptionD, q.CorrectOption, q.CreatedAt, q.UpdatedAt);
+    }
+
+    public async Task DeleteQuizQuestionAsync(Guid questionId, CancellationToken ct)
+    {
+        var q = await db.QuizQuestions.FirstOrDefaultAsync(x => x.Id == questionId, ct);
+        if (q == null)
+        {
+            return;
+        }
+
+        db.QuizQuestions.Remove(q);
+        await db.SaveChangesAsync(ct);
+    }
+
     private static LessonResponse ToLessonResponse(Lesson x) => new(
         x.Id,
         x.ModuleId,
@@ -230,6 +412,24 @@ public class ContentAdminService(AppDbContext db) : IContentAdminService
             x.ImageUrl,
             payload,
             x.OrderIndex,
+            x.CreatedAt,
+            x.UpdatedAt);
+    }
+
+    private static ActivityTypeResponse ToActivityTypeResponse(ActivityType x)
+    {
+        JsonElement? schema = null;
+        if (!string.IsNullOrWhiteSpace(x.SchemaJson))
+        {
+            schema = JsonSerializer.Deserialize<JsonElement>(x.SchemaJson);
+        }
+
+        return new ActivityTypeResponse(
+            x.Id,
+            x.Key,
+            x.DisplayName,
+            x.Description,
+            schema,
             x.CreatedAt,
             x.UpdatedAt);
     }

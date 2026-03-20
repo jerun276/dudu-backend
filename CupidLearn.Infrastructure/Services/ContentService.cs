@@ -66,6 +66,52 @@ public class ContentService(AppDbContext db) : IContentService
         return ToResponse(level);
     }
 
+    public async Task<LevelResponse> UpdateLevelAsync(Guid levelId, LevelUpdateRequest request, CancellationToken ct)
+    {
+        var level = await db.Levels.FirstOrDefaultAsync(x => x.Id == levelId, ct);
+        if (level == null)
+        {
+            throw new NotFoundException("Level not found");
+        }
+
+        level.Language = request.Language?.Trim();
+        level.Name = request.Name.Trim();
+
+        await db.SaveChangesAsync(ct);
+
+        return ToResponse(level);
+    }
+
+    public async Task DeleteLevelAsync(Guid levelId, CancellationToken ct)
+    {
+        var level = await db.Levels.FirstOrDefaultAsync(x => x.Id == levelId, ct);
+        if (level == null)
+        {
+            return;
+        }
+
+        var modules = await db.Modules.Where(x => x.LevelId == levelId).ToListAsync(ct);
+        var moduleIds = modules.Select(x => x.Id).ToList();
+
+        var lessons = await db.Lessons.Where(x => moduleIds.Contains(x.ModuleId)).ToListAsync(ct);
+        var lessonIds = lessons.Select(x => x.Id).ToList();
+
+        var activities = await db.LessonActivities.Where(x => lessonIds.Contains(x.LessonId)).ToListAsync(ct);
+
+        var quizzes = await db.Quizzes.Where(x => lessonIds.Contains(x.LessonId)).ToListAsync(ct);
+        var quizIds = quizzes.Select(x => x.Id).ToList();
+        var questions = await db.QuizQuestions.Where(x => quizIds.Contains(x.QuizId)).ToListAsync(ct);
+
+        db.QuizQuestions.RemoveRange(questions);
+        db.Quizzes.RemoveRange(quizzes);
+        db.LessonActivities.RemoveRange(activities);
+        db.Lessons.RemoveRange(lessons);
+        db.Modules.RemoveRange(modules);
+        db.Levels.Remove(level);
+
+        await db.SaveChangesAsync(ct);
+    }
+
     public async Task<ModuleResponse> CreateModuleAsync(Guid levelId, ModuleCreateRequest request, CancellationToken ct)
     {
         var levelExists = await db.Levels.AnyAsync(x => x.Id == levelId, ct);

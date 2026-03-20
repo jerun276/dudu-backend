@@ -54,11 +54,42 @@ public record ActivityResponse(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
+public record ActivityTypeCreateRequest(
+    [Required] string Key,
+    [Required] string DisplayName,
+    string? Description,
+    JsonElement? Schema);
+
+public record ActivityTypeUpdateRequest(
+    [Required] string Key,
+    [Required] string DisplayName,
+    string? Description,
+    JsonElement? Schema);
+
+public record ActivityTypeResponse(
+    Guid Id,
+    string Key,
+    string DisplayName,
+    string? Description,
+    JsonElement? Schema,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
+
 public record QuizCreateRequest([Required] string Title);
+
+public record QuizUpdateRequest([Required] string Title);
 
 public record QuizResponse(Guid Id, Guid LessonId, string Title);
 
 public record QuizQuestionCreateRequest(
+    [Required] string Prompt,
+    [Required] string OptionA,
+    [Required] string OptionB,
+    [Required] string OptionC,
+    [Required] string OptionD,
+    [Required] string CorrectOption);
+
+public record QuizQuestionUpdateRequest(
     [Required] string Prompt,
     [Required] string OptionA,
     [Required] string OptionB,

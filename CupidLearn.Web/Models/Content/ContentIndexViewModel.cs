@@ -6,6 +6,8 @@ public class ContentIndexViewModel
 
     public string? Language { get; set; }
 
+    public List<ActivityTypeVm> ActivityTypes { get; set; } = [];
+
     public List<LevelVm> Levels { get; set; } = [];
 
     public Guid? SelectedLevelId { get; set; }
@@ -21,6 +23,8 @@ public class ContentIndexViewModel
     public List<QuizVm> Quizzes { get; set; } = [];
     public List<QuizQuestionVm> QuizQuestions { get; set; } = [];
 
+    public record ActivityTypeVm(Guid Id, string Key, string DisplayName, string? Description, string? SchemaJson);
+
     public record LevelVm(Guid Id, string Language, string Name);
 
     public record ModuleVm(Guid Id, Guid LevelId, string Name);
@@ -31,5 +35,5 @@ public class ContentIndexViewModel
 
     public record QuizVm(Guid Id, Guid LessonId, string Title);
 
-    public record QuizQuestionVm(Guid Id, Guid QuizId, string Prompt, string CorrectOption);
+    public record QuizQuestionVm(Guid Id, Guid QuizId, string Prompt, string OptionA, string OptionB, string OptionC, string OptionD, string CorrectOption);
 }

@@ -2,50 +2,92 @@
     ViewData["Title"] = "Dashboard";
 }
 
-<div class="row g-3">
-    <div class="col-12 col-lg-8">
-        <div class="card p-4">
-            <div class="d-flex align-items-start justify-content-between">
+<div class="space-y-6">
+
+    <!-- Welcome Banner -->
+    <div class="bg-gradient-to-r from-indigo-600 to-indigo-500 rounded-2xl p-6 text-white">
+        <div class="flex items-start justify-between">
+            <div>
+                <h2 class="text-xl font-bold mb-1">Welcome back, Admin 👋</h2>
+                <p class="text-indigo-100 text-sm">Manage your content, users, and subscriptions from here.</p>
+            </div>
+            <span class="inline-flex items-center px-3 py-1 rounded-full bg-white/20 text-white text-xs font-medium">
+                Admin
+            </span>
+        </div>
+    </div>
+
+    <!-- Stat Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <a asp-controller="Content" asp-action="Index"
+           class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 hover:shadow-md hover:border-indigo-100 transition-all group">
+            <div class="flex items-center gap-4">
+                <div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-100 transition-colors">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                </div>
                 <div>
-                    <div class="fw-semibold">Welcome back</div>
-                    <div class="text-muted small">Use the navigation to manage content, subscriptions, organizations and seats.</div>
-                </div>
-                <span class="badge text-bg-dark">Admin</span>
-            </div>
-
-            <hr />
-
-            <div class="row g-3">
-                <div class="col-12 col-md-4">
-                    <div class="border rounded-3 p-3 bg-light">
-                        <div class="text-muted small">Content</div>
-                        <div class="fw-semibold">Levels • Modules • Lessons</div>
-                    </div>
-                </div>
-                <div class="col-12 col-md-4">
-                    <div class="border rounded-3 p-3 bg-light">
-                        <div class="text-muted small">Assessment</div>
-                        <div class="fw-semibold">Quizzes • Questions</div>
-                    </div>
-                </div>
-                <div class="col-12 col-md-4">
-                    <div class="border rounded-3 p-3 bg-light">
-                        <div class="text-muted small">Billing</div>
-                        <div class="fw-semibold">Subscriptions • Seats</div>
-                    </div>
+                    <div class="text-xs text-slate-400 font-medium uppercase tracking-wide">Content</div>
+                    <div class="font-semibold text-slate-800 mt-0.5">Levels · Modules · Lessons</div>
+                    <div class="text-xs text-indigo-500 mt-1">Manage →</div>
                 </div>
             </div>
+        </a>
+
+        <a asp-controller="Content" asp-action="Index"
+           class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 hover:shadow-md hover:border-violet-100 transition-all group">
+            <div class="flex items-center gap-4">
+                <div class="w-11 h-11 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center flex-shrink-0 group-hover:bg-violet-100 transition-colors">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-xs text-slate-400 font-medium uppercase tracking-wide">Assessment</div>
+                    <div class="font-semibold text-slate-800 mt-0.5">Quizzes · Questions</div>
+                    <div class="text-xs text-violet-500 mt-1">Manage →</div>
+                </div>
+            </div>
+        </a>
+
+        <a asp-controller="Billing" asp-action="Index"
+           class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 hover:shadow-md hover:border-emerald-100 transition-all group">
+            <div class="flex items-center gap-4">
+                <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-100 transition-colors">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-xs text-slate-400 font-medium uppercase tracking-wide">Billing</div>
+                    <div class="font-semibold text-slate-800 mt-0.5">Subscriptions · Seats</div>
+                    <div class="text-xs text-emerald-500 mt-1">Manage →</div>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+        <h3 class="text-sm font-semibold text-slate-700 mb-4">Quick Actions</h3>
+        <div class="flex flex-wrap gap-3">
+            <a asp-controller="Content" asp-action="Index"
+               class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-medium hover:bg-indigo-100 transition-colors">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+                Create Content
+            </a>
+            <a asp-controller="Users" asp-action="Index"
+               class="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-200 transition-colors">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                View Users
+            </a>
+            <a asp-controller="Billing" asp-action="Index"
+               class="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-200 transition-colors">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                Manage Organizations
+            </a>
         </div>
     </div>
 
-    <div class="col-12 col-lg-4">
-        <div class="card p-4">
-            <div class="fw-semibold mb-2">Quick actions</div>
-            <div class="d-grid gap-2">
-                <a class="btn btn-outline-dark" href="#">Create Module</a>
-                <a class="btn btn-outline-dark" href="#">Create Lesson</a>
-                <a class="btn btn-outline-dark" href="#">Create Organization</a>
-            </div>
-        </div>
-    </div>
 </div>

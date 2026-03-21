@@ -26,6 +26,8 @@ builder.Services.AddSession(options =>
     options.IdleTimeout = TimeSpan.FromHours(8);
 });
 
+builder.Services.AddTransient<CupidLearn.Web.Services.TokenRefreshHandler>();
+
 builder.Services.AddHttpClient("CupidLearnApi", client =>
 {
     var baseUrl = builder.Configuration["Api:BaseUrl"];
@@ -33,7 +35,7 @@ builder.Services.AddHttpClient("CupidLearnApi", client =>
     {
         client.BaseAddress = new Uri(baseUrl);
     }
-});
+}).AddHttpMessageHandler<CupidLearn.Web.Services.TokenRefreshHandler>();
 
 builder.Services.AddScoped<CupidLearn.Web.Services.ApiClient>();
 

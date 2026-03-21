@@ -5,141 +5,189 @@
 
 @if (!string.IsNullOrWhiteSpace(Model.Error))
 {
-    <div class="alert alert-danger">@Model.Error</div>
+    <div class="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl mb-4">@Model.Error</div>
 }
 
-<div class="row g-3">
-    <div class="col-12 col-lg-7">
-        <div class="card p-4">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-                <div class="fw-semibold">Search users</div>
-                <span class="badge text-bg-light">@Model.Total</span>
+<div class="flex flex-col lg:flex-row gap-5">
+
+    <!-- Left: Search + Table -->
+    <div class="flex-1 min-w-0">
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                    <h2 class="text-sm font-semibold text-slate-800">User Search</h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Search by email or phone number</p>
+                </div>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-xs font-medium">
+                    @Model.Total users
+                </span>
             </div>
 
-            <form method="get" class="mb-3">
-                <label class="form-label">Search</label>
-                <div class="input-group">
-                    <input name="query" value="@Model.Query" class="form-control" placeholder="email / phone" />
-                    <button class="btn btn-dark" type="submit">Search</button>
-                </div>
-                <div class="text-muted small mt-2">Uses <code>GET /api/admin/users</code> (ADMIN only).</div>
-            </form>
+            <div class="p-5">
+                <form method="get" class="flex gap-2 mb-5">
+                    <input name="query" value="@Model.Query"
+                           class="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-slate-400"
+                           placeholder="Search by email or phone..." />
+                    <button type="submit"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors">
+                        Search
+                    </button>
+                </form>
 
-            <div class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead>
-                    <tr>
-                        <th>Email</th>
-                        <th>Phone</th>
-                        <th>Role</th>
-                        <th>UserId</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    @foreach (var u in Model.Items)
-                    {
-                        <tr>
-                            <td>
-                                <a class="fw-semibold" href="@Url.Action("Index", new { query = Model.Query, userId = u.UserId })">@u.Email</a>
-                                @if (!string.IsNullOrWhiteSpace(u.FullName))
-                                {
-                                    <div class="small text-muted">@u.FullName</div>
-                                }
-                            </td>
-                            <td class="text-muted small">@u.PhoneNumber</td>
-                            <td><span class="badge text-bg-dark">@u.Role</span></td>
-                            <td class="text-muted small">@u.UserId</td>
-                        </tr>
-                    }
-                    </tbody>
-                </table>
+                <div class="overflow-x-auto rounded-xl border border-slate-100">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50 border-b border-slate-100">
+                            <tr>
+                                <th class="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">User</th>
+                                <th class="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Phone</th>
+                                <th class="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Role</th>
+                                <th class="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">User ID</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-50">
+                            @foreach (var u in Model.Items)
+                            {
+                                var isSelected = Model.Summary?.UserId == u.UserId;
+                                <tr class="hover:bg-slate-50 transition-colors @(isSelected ? "bg-indigo-50" : "")">
+                                    <td class="px-4 py-3">
+                                        <a href="@Url.Action("Index", new { query = Model.Query, userId = u.UserId })"
+                                           class="font-medium text-indigo-600 hover:text-indigo-800">@u.Email</a>
+                                        @if (!string.IsNullOrWhiteSpace(u.FullName))
+                                        {
+                                            <div class="text-xs text-slate-400">@u.FullName</div>
+                                        }
+                                    </td>
+                                    <td class="px-4 py-3 text-slate-500 text-xs font-mono">@u.PhoneNumber</td>
+                                    <td class="px-4 py-3">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-900 text-white text-xs font-medium">@u.Role</span>
+                                    </td>
+                                    <td class="px-4 py-3 text-slate-400 text-xs font-mono truncate max-w-[150px]">@u.UserId</td>
+                                </tr>
+                            }
+                            @if (!Model.Items.Any())
+                            {
+                                <tr>
+                                    <td colspan="4" class="px-4 py-8 text-center text-slate-400 text-sm">
+                                        No users found. Try searching above.
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="col-12 col-lg-5">
-        <div class="card p-4">
-            <div class="fw-semibold mb-2">User summary</div>
-
-            @if (Model.Summary == null)
-            {
-                <div class="text-muted small">Select a user from the results.</div>
-            }
-            else
-            {
-                <div class="border rounded-3 p-3 bg-light mb-3">
-                    <div class="fw-semibold">@Model.Summary.Email</div>
-                    <div class="small text-muted">@Model.Summary.UserId</div>
-                    <div class="small text-muted">Role: @Model.Summary.Role</div>
-                    @if (!string.IsNullOrWhiteSpace(Model.Summary.FullName))
-                    {
-                        <div class="small text-muted">Name: @Model.Summary.FullName</div>
-                    }
-                </div>
-
-                <div class="row g-2">
-                    <div class="col-12">
-                        <div class="fw-semibold">Subscription limits</div>
-                        <div class="small text-muted">Plan: @Model.Summary.Limits.Plan</div>
-                        <div class="small text-muted">Max orgs: @Model.Summary.Limits.MaxOrganizations</div>
-                        <div class="small text-muted">Max seats/org: @Model.Summary.Limits.MaxSeatsPerOrganization</div>
-                        <div class="small text-muted">Max children: @Model.Summary.Limits.MaxChildren</div>
+    <!-- Right: User Detail -->
+    <div class="w-full lg:w-80 flex-shrink-0">
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100">
+                <h2 class="text-sm font-semibold text-slate-800">User Details</h2>
+            </div>
+            <div class="p-5">
+                @if (Model.Summary == null)
+                {
+                    <div class="text-center py-8">
+                        <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                            <svg class="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                        </div>
+                        <p class="text-sm text-slate-400">Click a user to view their details</p>
+                    </div>
+                }
+                else
+                {
+                    <!-- User Info -->
+                    <div class="bg-indigo-50 rounded-xl p-4 mb-4">
+                        <div class="font-semibold text-slate-800 text-sm">@Model.Summary.Email</div>
+                        <div class="text-xs text-slate-400 font-mono mt-0.5">@Model.Summary.UserId</div>
+                        <div class="flex items-center gap-2 mt-2">
+                            <span class="inline-flex px-2 py-0.5 rounded-md bg-slate-800 text-white text-xs font-medium">@Model.Summary.Role</span>
+                            @if (!string.IsNullOrWhiteSpace(Model.Summary.FullName))
+                            {
+                                <span class="text-xs text-slate-500">@Model.Summary.FullName</span>
+                            }
+                        </div>
                     </div>
 
-                    <div class="col-12 mt-2">
-                        <div class="fw-semibold">Subscription</div>
+                    <!-- Subscription Limits -->
+                    <div class="mb-4">
+                        <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Plan Limits</h3>
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-slate-500">Plan</span>
+                                <span class="font-medium text-slate-800">@Model.Summary.Limits.Plan</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-slate-500">Max Orgs</span>
+                                <span class="font-medium text-slate-800">@Model.Summary.Limits.MaxOrganizations</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-slate-500">Max Seats/Org</span>
+                                <span class="font-medium text-slate-800">@Model.Summary.Limits.MaxSeatsPerOrganization</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-slate-500">Max Children</span>
+                                <span class="font-medium text-slate-800">@Model.Summary.Limits.MaxChildren</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Subscription -->
+                    <div class="mb-4">
+                        <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Subscription</h3>
                         @if (Model.Summary.Subscription == null)
                         {
-                            <div class="text-muted small">No subscription found.</div>
+                            <div class="text-sm text-slate-400">No subscription found.</div>
                         }
                         else
                         {
-                            <div class="small text-muted">@Model.Summary.Subscription.Provider (@Model.Summary.Subscription.Status)</div>
-                            <div class="small text-muted">@Model.Summary.Subscription.ProviderSubscriptionId</div>
+                            <div class="bg-emerald-50 rounded-xl p-3">
+                                <div class="text-sm font-medium text-emerald-700">@Model.Summary.Subscription.Provider</div>
+                                <div class="text-xs text-emerald-600">@Model.Summary.Subscription.Status</div>
+                                <div class="text-xs text-slate-400 font-mono mt-1">@Model.Summary.Subscription.ProviderSubscriptionId</div>
+                            </div>
                         }
                     </div>
 
-                    <div class="col-12 mt-2">
-                        <div class="fw-semibold">Seat assignments</div>
-                        @if (!Model.Summary.SeatAssignments.Any())
-                        {
-                            <div class="text-muted small">None</div>
-                        }
-                        else
-                        {
-                            <ul class="list-group list-group-flush">
+                    <!-- Seat Assignments -->
+                    @if (Model.Summary.SeatAssignments.Any())
+                    {
+                        <div class="mb-4">
+                            <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Seat Assignments</h3>
+                            <div class="space-y-1.5">
                                 @foreach (var s in Model.Summary.SeatAssignments)
                                 {
-                                    <li class="list-group-item px-0">
-                                        <span class="badge text-bg-dark">@s.SeatStatus</span>
-                                        <span class="text-muted small ms-2">Org: @s.OrganizationId</span>
-                                    </li>
+                                    <div class="flex items-center gap-2 text-xs">
+                                        <span class="px-2 py-0.5 rounded-md bg-slate-800 text-white text-xs font-medium">@s.SeatStatus</span>
+                                        <span class="text-slate-400 font-mono truncate">@s.OrganizationId</span>
+                                    </div>
                                 }
-                            </ul>
-                        }
-                    </div>
+                            </div>
+                        </div>
+                    }
 
-                    <div class="col-12 mt-2">
-                        <div class="fw-semibold">Children</div>
-                        @if (!Model.Summary.Children.Any())
-                        {
-                            <div class="text-muted small">None</div>
-                        }
-                        else
-                        {
-                            <ul class="list-group list-group-flush">
+                    <!-- Children -->
+                    @if (Model.Summary.Children.Any())
+                    {
+                        <div>
+                            <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Children</h3>
+                            <div class="space-y-1.5">
                                 @foreach (var c in Model.Summary.Children)
                                 {
-                                    <li class="list-group-item px-0">
-                                        <div class="fw-semibold">@c.DisplayName</div>
-                                        <div class="text-muted small">@c.Id</div>
-                                    </li>
+                                    <div class="bg-slate-50 rounded-xl px-3 py-2">
+                                        <div class="text-sm font-medium text-slate-800">@c.DisplayName</div>
+                                        <div class="text-xs text-slate-400 font-mono">@c.Id</div>
+                                    </div>
                                 }
-                            </ul>
-                        }
-                    </div>
-                </div>
-            }
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
         </div>
     </div>
+
 </div>

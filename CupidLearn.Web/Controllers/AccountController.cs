@@ -62,8 +62,13 @@ public class AccountController(IHttpClientFactory httpClientFactory) : Controlle
             new(ClaimTypes.NameIdentifier, payload.UserId.ToString()),
             new(ClaimTypes.Name, payload.Email ?? model.Email),
             new(ClaimTypes.Role, "ADMIN"),
-            new("access_token", payload.AccessToken)
+            new(SessionKeys.AccessToken, payload.AccessToken)
         };
+
+        if (!string.IsNullOrWhiteSpace(payload.RefreshToken))
+        {
+            claims.Add(new Claim(SessionKeys.RefreshToken, payload.RefreshToken));
+        }
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         var principal = new ClaimsPrincipal(identity);
@@ -85,5 +90,5 @@ public class AccountController(IHttpClientFactory httpClientFactory) : Controlle
         return RedirectToAction("Login", "Account");
     }
 
-    private sealed record AuthPayload(Guid UserId, string? Email, string? Role, string AccessToken);
+    private sealed record AuthPayload(Guid UserId, string? Email, string? Role, string AccessToken, string? RefreshToken);
 }

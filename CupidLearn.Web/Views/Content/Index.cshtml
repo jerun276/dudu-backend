@@ -143,26 +143,38 @@
                 const keys = getOrderedKeys(schema);
                 keys.forEach((key) => { const def = schema.properties[key] || {}; const el = renderField(schema, key, def, requiredKeys); payloadFieldsEl.appendChild(el); });
             }
-            function onTypeChanged() {
+            function onTypeChanged(e) {
                 const opt = typeSelect.options[typeSelect.selectedIndex];
                 const schemaB64 = opt ? opt.getAttribute('data-schema-b64') : '';
                 const schemaText = safeAtob(schemaB64 || '');
                 const schema = tryParseJson(schemaText);
                 currentSchema = schema;
+                
+                const isTypeChange = e && e.target === typeSelect;
+
                 if (schema) {
-                    if (payloadJsonEl.value.trim().length === 0) { setPayloadJson(buildEmptyPayloadFromSchema(schema)); }
-                    else { const existing = tryParseJson(payloadJsonEl.value.trim()); if (!existing || typeof existing !== 'object') { setPayloadJson(buildEmptyPayloadFromSchema(schema)); } }
+                    if (isTypeChange || payloadJsonEl.value.trim().length === 0) { 
+                        setPayloadJson(buildEmptyPayloadFromSchema(schema)); 
+                    } else { 
+                        const existing = tryParseJson(payloadJsonEl.value.trim()); 
+                        if (!existing || typeof existing !== 'object') { 
+                            setPayloadJson(buildEmptyPayloadFromSchema(schema)); 
+                        } 
+                    }
+                } else if (isTypeChange) {
+                    setPayloadJson({});
                 }
+
                 renderPayloadEditorFromSchema(schema);
                 syncActivityFieldsIntoPayload();
             }
-            function onClear() { payloadJsonEl.value = ''; onTypeChanged(); }
+            function onClear() { payloadJsonEl.value = ''; onTypeChanged({}); }
             typeSelect.addEventListener('change', onTypeChanged);
             payloadJsonEl.addEventListener('input', onTypeChanged);
             if (clearBtn) clearBtn.addEventListener('click', onClear);
             if (activityTitleEl) activityTitleEl.addEventListener('input', syncActivityFieldsIntoPayload);
             if (activityImageUrlEl) activityImageUrlEl.addEventListener('input', syncActivityFieldsIntoPayload);
-            onTypeChanged();
+            onTypeChanged({});
         }
         if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', initPayloadSchemaEditor); } else { initPayloadSchemaEditor(); }
     })();
@@ -287,18 +299,23 @@
                             <div class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Create Module</div>
                             <div class="flex gap-2">
                                 <input name="Name" class="@inputCls flex-1" placeholder="Module name" />
+                                @{ var nextModuleOrder = Model.Modules.Count > 0 ? Model.Modules.Max(x => x.OrderIndex) + 1 : 0; }
+                                <input name="OrderIndex" type="number" class="@(inputCls.Replace("w-full", "w-20"))" value="@nextModuleOrder" placeholder="Order" />
                                 <button type="submit" class="@btnPrimary">Add</button>
                             </div>
                         </form>
                         <div class="space-y-1 max-h-96 overflow-y-auto pr-1" x-data="{}">
-                            @foreach (var m in Model.Modules)
+                            @foreach (var m in Model.Modules.OrderBy(x => x.OrderIndex))
                             {
                                 var isActive = Model.SelectedModuleId == m.Id;
                                 <div class="rounded-xl border @(isActive ? "border-indigo-200 bg-indigo-50" : "border-slate-100 bg-white hover:bg-slate-50") transition-colors"
                                      x-data="{ editing: false }">
                                     <div class="flex items-center justify-between px-3 py-2.5">
                                         <a href="@Url.Action("Index", new { language = Model.Language, levelId = Model.SelectedLevelId, moduleId = m.Id })" class="flex-1 min-w-0">
-                                            <div class="text-sm font-medium @(isActive ? "text-indigo-700" : "text-slate-800") truncate">@m.Name</div>
+                                            <div class="text-sm font-medium @(isActive ? "text-indigo-700" : "text-slate-800") truncate">
+                                                <span class="text-slate-400 font-mono mr-1">#@m.OrderIndex</span>
+                                                @m.Name
+                                            </div>
                                         </a>
                                         <div class="flex items-center gap-1 ml-2 flex-shrink-0">
                                             @if (isActive) { <span class="text-xs bg-indigo-600 text-white px-2 py-0.5 rounded-md">Selected</span> }
@@ -318,7 +335,10 @@
                                             <input type="hidden" name="Id" value="@m.Id" />
                                             <input type="hidden" name="LevelId" value="@Model.SelectedLevelId" />
                                             <input type="hidden" name="Language" value="@Model.Language" />
-                                            <input name="Name" value="@m.Name" class="@inputCls" placeholder="Name" />
+                                            <div class="flex gap-2">
+                                                <input name="Name" value="@m.Name" class="@inputCls flex-1" placeholder="Name" />
+                                                <input name="OrderIndex" type="number" value="@m.OrderIndex" class="@(inputCls.Replace("w-full", "w-20"))" placeholder="Order" />
+                                            </div>
                                             <div class="flex justify-end"><button type="submit" class="@btnPrimary">Save</button></div>
                                         </form>
                                     </div>

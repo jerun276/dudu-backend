@@ -42,7 +42,7 @@ public class ContentController(ApiClient apiClient) : Controller
             if (levelId.HasValue)
             {
                 var modules = await client.GetFromJsonAsync<List<ModuleDto>>($"/api/content/levels/{levelId.Value}/modules", ct) ?? [];
-                vm.Modules = modules.Select(x => new ContentIndexViewModel.ModuleVm(x.Id, x.LevelId, x.Name)).ToList();
+                vm.Modules = modules.Select(x => new ContentIndexViewModel.ModuleVm(x.Id, x.LevelId, x.Name, x.OrderIndex)).ToList();
             }
 
             if (moduleId.HasValue)
@@ -268,7 +268,7 @@ public class ContentController(ApiClient apiClient) : Controller
         }
 
         var client = apiClient.CreateAuthenticatedClient();
-        using var resp = await client.PostAsJsonAsync("/api/content/modules", new { levelId = model.LevelId, name = model.Name }, ct);
+        using var resp = await client.PostAsJsonAsync("/api/content/modules", new { levelId = model.LevelId, name = model.Name, orderIndex = model.OrderIndex }, ct);
 
         if (!resp.IsSuccessStatusCode)
         {
@@ -289,7 +289,7 @@ public class ContentController(ApiClient apiClient) : Controller
         }
 
         var client = apiClient.CreateAuthenticatedClient();
-        using var resp = await client.PutAsJsonAsync($"/api/content/modules/{model.Id}", new { name = model.Name }, ct);
+        using var resp = await client.PutAsJsonAsync($"/api/content/modules/{model.Id}", new { name = model.Name, orderIndex = model.OrderIndex }, ct);
 
         if (!resp.IsSuccessStatusCode)
         {
@@ -539,7 +539,7 @@ public class ContentController(ApiClient apiClient) : Controller
     }
 
     private sealed record LevelDto(Guid Id, string Language, string Name);
-    private sealed record ModuleDto(Guid Id, Guid LevelId, string Name);
+    private sealed record ModuleDto(Guid Id, Guid LevelId, string Name, int OrderIndex);
     private sealed record LessonDto(Guid Id, Guid ModuleId, string Title, string? Description, string? Content, int OrderIndex);
     private sealed record ActivityDto(Guid Id, Guid LessonId, string Type, string Title, string? ImageUrl, JsonElement? Payload, int OrderIndex);
     private sealed record ActivityTypeDto(Guid Id, string Key, string DisplayName, string? Description, JsonElement? Schema);

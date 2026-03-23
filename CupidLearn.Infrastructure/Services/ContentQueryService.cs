@@ -48,8 +48,8 @@ public class ContentQueryService(AppDbContext db) : IContentQueryService
             throw new NotFoundException("Level not found");
         }
 
-        var modules = await db.Modules.Where(x => x.LevelId == levelId).OrderBy(x => x.Name).ToListAsync(ct);
-        return modules.Select(x => new ModuleResponse(x.Id, x.LevelId, x.Name)).ToList();
+        var modules = await db.Modules.Where(x => x.LevelId == levelId).OrderBy(x => x.OrderIndex).ToListAsync(ct);
+        return modules.Select(x => new ModuleResponse(x.Id, x.LevelId, x.Name, x.OrderIndex)).ToList();
     }
 
     public async Task<ModuleResponse> GetModuleByIdAsync(Guid moduleId, CancellationToken ct)
@@ -60,7 +60,7 @@ public class ContentQueryService(AppDbContext db) : IContentQueryService
             throw new NotFoundException("Module not found");
         }
 
-        return new ModuleResponse(module.Id, module.LevelId, module.Name);
+        return new ModuleResponse(module.Id, module.LevelId, module.Name, module.OrderIndex);
     }
 
     public async Task<List<LessonResponse>> ListLessonsByModuleAsync(Guid moduleId, CancellationToken ct)

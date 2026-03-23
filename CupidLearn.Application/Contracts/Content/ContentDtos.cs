@@ -4,7 +4,7 @@ namespace CupidLearn.Application.Contracts.Content;
 
 public record LevelResponse(Guid Id, string? Language, string? Name);
 
-public record ModuleResponse(Guid Id, Guid LevelId, string? Name);
+public record ModuleResponse(Guid Id, Guid LevelId, string? Name, int OrderIndex);
 
 public record ExamResponse(Guid Id, Guid ModuleId, string? Title);
 
@@ -17,10 +17,12 @@ public record LevelUpdateRequest(
     [Required] string Name);
 
 public record ModuleCreateRequest(
-    [Required] string Name);
+    [Required] string Name,
+    int OrderIndex = 0);
 
 public record ModuleUpdateRequest(
-    [Required] string Name);
+    [Required] string Name,
+    int OrderIndex = 0);
 
 public record ExamCreateRequest(
     [Required] string Title);

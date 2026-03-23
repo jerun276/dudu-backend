@@ -28,7 +28,7 @@ public class ContentService(AppDbContext db) : IContentService
 
         var modules = await db.Modules
             .Where(x => x.LevelId == levelId)
-            .OrderBy(x => x.Name)
+            .OrderBy(x => x.OrderIndex)
             .ToListAsync(ct);
 
         return modules.Select(ToResponse).ToList();
@@ -123,7 +123,8 @@ public class ContentService(AppDbContext db) : IContentService
         var module = new Module
         {
             LevelId = levelId,
-            Name = request.Name.Trim()
+            Name = request.Name.Trim(),
+            OrderIndex = request.OrderIndex
         };
 
         db.Modules.Add(module);
@@ -154,7 +155,7 @@ public class ContentService(AppDbContext db) : IContentService
 
     private static LevelResponse ToResponse(Level x) => new(x.Id, x.Language, x.Name);
 
-    private static ModuleResponse ToResponse(Module x) => new(x.Id, x.LevelId, x.Name);
+    private static ModuleResponse ToResponse(Module x) => new(x.Id, x.LevelId, x.Name, x.OrderIndex);
 
     private static ExamResponse ToResponse(Exam x) => new(x.Id, x.ModuleId, x.Title);
 }

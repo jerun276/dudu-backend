@@ -13,5 +13,7 @@ public class UpdateModuleViewModel
     [Required]
     public string Name { get; set; } = string.Empty;
 
+    public int OrderIndex { get; set; }
+
     public string? Language { get; set; }
 }

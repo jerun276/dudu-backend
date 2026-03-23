@@ -27,7 +27,7 @@ public class ContentIndexViewModel
 
     public record LevelVm(Guid Id, string Language, string Name);
 
-    public record ModuleVm(Guid Id, Guid LevelId, string Name);
+    public record ModuleVm(Guid Id, Guid LevelId, string Name, int OrderIndex);
 
     public record LessonVm(Guid Id, Guid ModuleId, string Title, string? Description, int OrderIndex);
 

@@ -9,4 +9,6 @@ public class CreateModuleViewModel
 
     [Required]
     public string Name { get; set; } = string.Empty;
+
+    public int OrderIndex { get; set; }
 }

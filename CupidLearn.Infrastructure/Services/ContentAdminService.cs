@@ -95,13 +95,14 @@ public class ContentAdminService(AppDbContext db) : IContentAdminService
         var module = new Module
         {
             LevelId = request.LevelId,
-            Name = request.Name.Trim()
+            Name = request.Name.Trim(),
+            OrderIndex = request.OrderIndex
         };
 
         db.Modules.Add(module);
         await db.SaveChangesAsync(ct);
 
-        return new ModuleResponse(module.Id, module.LevelId, module.Name);
+        return new ModuleResponse(module.Id, module.LevelId, module.Name, module.OrderIndex);
     }
 
     public async Task<ModuleResponse> UpdateModuleAsync(Guid moduleId, ModuleUpdateRequest request, CancellationToken ct)
@@ -113,9 +114,10 @@ public class ContentAdminService(AppDbContext db) : IContentAdminService
         }
 
         module.Name = request.Name.Trim();
+        module.OrderIndex = request.OrderIndex;
         await db.SaveChangesAsync(ct);
 
-        return new ModuleResponse(module.Id, module.LevelId, module.Name);
+        return new ModuleResponse(module.Id, module.LevelId, module.Name, module.OrderIndex);
     }
 
     public async Task DeleteModuleAsync(Guid moduleId, CancellationToken ct)

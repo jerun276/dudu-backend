@@ -12,6 +12,7 @@ public class Module
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid LevelId { get; set; }
     public string? Name { get; set; }
+    public int OrderIndex { get; set; }
 }
 
 public class Exam

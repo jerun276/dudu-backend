@@ -5,7 +5,8 @@ namespace CupidLearn.Application.Contracts.Content;
 
 public record ModuleCreateV2Request(
     [Required] Guid LevelId,
-    [Required] string Name);
+    [Required] string Name,
+    int OrderIndex = 0);
 
 public record LessonCreateRequest(
     [Required] string Title,

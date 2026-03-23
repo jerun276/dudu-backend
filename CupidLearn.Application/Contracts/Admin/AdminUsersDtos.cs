@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace CupidLearn.Application.Contracts.Admin;
 
 public record AdminUserListItemResponse(
@@ -20,7 +22,16 @@ public record AdminSeatAssignmentResponse(
 public record AdminChildResponse(
     Guid Id,
     string DisplayName,
+    int? Age,
     DateTimeOffset CreatedAt);
+
+public record AdminChildCreateRequest(
+    [Required] string DisplayName,
+    int? Age);
+
+public record AdminChildUpdateRequest(
+    [Required] string DisplayName,
+    int? Age);
 
 public record AdminSubscriptionResponse(
     Guid Id,

@@ -85,7 +85,7 @@ public class AdminUsersService(AppDbContext db) : IAdminUsersService
             .AsNoTracking()
             .Where(x => x.ParentUserId == userId)
             .OrderByDescending(x => x.CreatedAt)
-            .Select(x => new AdminChildResponse(x.Id, x.DisplayName, x.CreatedAt))
+            .Select(x => new AdminChildResponse(x.Id, x.DisplayName, x.Age, x.CreatedAt))
             .ToListAsync(ct);
 
         var seats = await db.Seats
@@ -127,6 +127,62 @@ public class AdminUsersService(AppDbContext db) : IAdminUsersService
             limits,
             seats,
             children);
+    }
+
+    public async Task<AdminChildResponse> CreateChildAsync(Guid authUserId, string? authRole, Guid parentUserId, AdminChildCreateRequest request, CancellationToken ct)
+    {
+        EnsureAdmin(authRole);
+
+        var parentExists = await db.Users.AnyAsync(x => x.Id == parentUserId, ct);
+        if (!parentExists)
+        {
+            throw new NotFoundException("Parent user not found");
+        }
+
+        var child = new ChildProfile
+        {
+            ParentUserId = parentUserId,
+            DisplayName = request.DisplayName,
+            Age = request.Age
+        };
+
+        db.ChildProfiles.Add(child);
+        await db.SaveChangesAsync(ct);
+
+        return new AdminChildResponse(child.Id, child.DisplayName, child.Age, child.CreatedAt);
+    }
+
+    public async Task<AdminChildResponse> UpdateChildAsync(Guid authUserId, string? authRole, Guid childId, AdminChildUpdateRequest request, CancellationToken ct)
+    {
+        EnsureAdmin(authRole);
+
+        var child = await db.ChildProfiles.FirstOrDefaultAsync(x => x.Id == childId, ct);
+        if (child == null)
+        {
+            throw new NotFoundException("Child not found");
+        }
+
+        child.DisplayName = request.DisplayName;
+        child.Age = request.Age;
+        child.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await db.SaveChangesAsync(ct);
+
+        return new AdminChildResponse(child.Id, child.DisplayName, child.Age, child.CreatedAt);
+    }
+
+    public async Task DeleteChildAsync(Guid authUserId, string? authRole, Guid childId, CancellationToken ct)
+    {
+        EnsureAdmin(authRole);
+
+        var child = await db.ChildProfiles.FirstOrDefaultAsync(x => x.Id == childId, ct);
+        if (child == null)
+        {
+            throw new NotFoundException("Child not found");
+        }
+
+        db.ChildProfiles.Remove(child);
+        await db.SaveChangesAsync(ct);
     }
 
     private static AdminSubscriptionLimitsResponse ComputeLimits(SubscriptionStatus? status)

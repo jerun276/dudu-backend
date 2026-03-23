@@ -80,7 +80,7 @@
     </div>
 
     <!-- Right: User Detail -->
-    <div class="w-full lg:w-80 flex-shrink-0">
+    <div class="w-full lg:w-96 flex-shrink-0">
         <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div class="px-5 py-4 border-b border-slate-100">
                 <h2 class="text-sm font-semibold text-slate-800">User Details</h2>
@@ -169,25 +169,114 @@
                         </div>
                     }
 
-                    <!-- Children -->
-                    @if (Model.Summary.Children.Any())
-                    {
-                        <div>
-                            <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Children</h3>
-                            <div class="space-y-1.5">
-                                @foreach (var c in Model.Summary.Children)
-                                {
-                                    <div class="bg-slate-50 rounded-xl px-3 py-2">
-                                        <div class="text-sm font-medium text-slate-800">@c.DisplayName</div>
-                                        <div class="text-xs text-slate-400 font-mono">@c.Id</div>
+                    <!-- Children Management -->
+                    <div>
+                        <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Children</h3>
+
+                        <!-- Existing children -->
+                        <div class="space-y-2 mb-3" id="children-list">
+                            @if (!Model.Summary.Children.Any())
+                            {
+                                <div class="text-xs text-slate-400 italic">No children added yet.</div>
+                            }
+                            @foreach (var c in Model.Summary.Children)
+                            {
+                                <div class="bg-slate-50 rounded-xl px-3 py-2" id="child-@c.Id">
+                                    <!-- Display row -->
+                                    <div class="flex items-center justify-between" id="child-display-@c.Id">
+                                        <div>
+                                            <div class="text-sm font-medium text-slate-800">@c.DisplayName</div>
+                                            <div class="text-xs text-slate-400">
+                                                @(c.Age.HasValue ? $"Age {c.Age}" : "Age not set")
+                                                &nbsp;·&nbsp;
+                                                <span class="font-mono">@c.Id.ToString()[..8]…</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-1.5 ml-2">
+                                            <button type="button"
+                                                    onclick="toggleEditChild('@c.Id')"
+                                                    class="text-xs px-2 py-1 rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors font-medium">
+                                                Edit
+                                            </button>
+                                            <form method="post" asp-action="DeleteChild"
+                                                  asp-route-userId="@Model.Summary.UserId"
+                                                  asp-route-childId="@c.Id"
+                                                  asp-route-query="@Model.Query"
+                                                  onsubmit="return confirm('Delete @c.DisplayName?')">
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit"
+                                                        class="text-xs px-2 py-1 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-colors font-medium">
+                                                    Del
+                                                </button>
+                                            </form>
+                                        </div>
                                     </div>
-                                }
-                            </div>
+
+                                    <!-- Edit row (hidden by default) -->
+                                    <form method="post" asp-action="EditChild"
+                                          asp-route-userId="@Model.Summary.UserId"
+                                          asp-route-childId="@c.Id"
+                                          asp-route-query="@Model.Query"
+                                          id="child-edit-@c.Id"
+                                          class="hidden mt-2 space-y-1.5">
+                                        @Html.AntiForgeryToken()
+                                        <input name="displayName" value="@c.DisplayName"
+                                               class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                               placeholder="Display name" required />
+                                        <input name="age" value="@c.Age" type="number" min="1" max="18"
+                                               class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                               placeholder="Age (optional)" />
+                                        <div class="flex gap-1.5">
+                                            <button type="submit"
+                                                    class="flex-1 text-xs px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors font-medium">
+                                                Save
+                                            </button>
+                                            <button type="button"
+                                                    onclick="toggleEditChild('@c.Id')"
+                                                    class="flex-1 text-xs px-3 py-1.5 rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300 transition-colors font-medium">
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            }
                         </div>
-                    }
+
+                        <!-- Add Child form -->
+                        <div class="border border-dashed border-slate-200 rounded-xl p-3">
+                            <div class="text-xs font-semibold text-slate-500 mb-2">Add Child</div>
+                            <form method="post" asp-action="CreateChild"
+                                  asp-route-userId="@Model.Summary.UserId"
+                                  asp-route-query="@Model.Query"
+                                  class="space-y-1.5">
+                                @Html.AntiForgeryToken()
+                                <input name="displayName"
+                                       class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder-slate-400"
+                                       placeholder="Display name *" required />
+                                <input name="age" type="number" min="1" max="18"
+                                       class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder-slate-400"
+                                       placeholder="Age (optional)" />
+                                <button type="submit"
+                                        class="w-full text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors font-medium">
+                                    + Add Child
+                                </button>
+                            </form>
+                        </div>
+                    </div>
                 }
             </div>
         </div>
     </div>
 
 </div>
+
+<script>
+    function toggleEditChild(childId) {
+        const display = document.getElementById('child-display-' + childId);
+        const edit = document.getElementById('child-edit-' + childId);
+        if (display && edit) {
+            display.classList.toggle('hidden');
+            edit.classList.toggle('hidden');
+        }
+    }
+</script>

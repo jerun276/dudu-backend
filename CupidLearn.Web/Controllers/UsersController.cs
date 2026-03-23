@@ -59,7 +59,7 @@ public class UsersController(ApiClient apiClient) : Controller
                             summary.Limits.MaxSeatsPerOrganization,
                             summary.Limits.MaxChildren),
                         summary.SeatAssignments.Select(s => new UsersIndexViewModel.SeatAssignmentVm(s.SeatId, s.OrganizationId, s.SeatStatus)).ToList(),
-                        summary.Children.Select(c => new UsersIndexViewModel.ChildVm(c.Id, c.DisplayName, c.CreatedAt)).ToList());
+                        summary.Children.Select(c => new UsersIndexViewModel.ChildVm(c.Id, c.DisplayName, c.Age, c.CreatedAt)).ToList());
                 }
             }
         }
@@ -71,13 +71,57 @@ public class UsersController(ApiClient apiClient) : Controller
         return View(vm);
     }
 
+    [HttpPost]
+    public async Task<IActionResult> CreateChild(Guid userId, [FromForm] string displayName, [FromForm] int? age, [FromQuery] string? query, CancellationToken ct = default)
+    {
+        try
+        {
+            var client = apiClient.CreateAuthenticatedClient();
+            var payload = new { displayName, age };
+            var response = await client.PostAsJsonAsync($"/api/admin/users/{userId}/children", payload, ct);
+            response.EnsureSuccessStatusCode();
+        }
+        catch { /* swallow — user will see stale state */ }
+
+        return RedirectToAction(nameof(Index), new { query, userId });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> EditChild(Guid userId, Guid childId, [FromForm] string displayName, [FromForm] int? age, [FromQuery] string? query, CancellationToken ct = default)
+    {
+        try
+        {
+            var client = apiClient.CreateAuthenticatedClient();
+            var payload = new { displayName, age };
+            var response = await client.PutAsJsonAsync($"/api/admin/users/{userId}/children/{childId}", payload, ct);
+            response.EnsureSuccessStatusCode();
+        }
+        catch { /* swallow */ }
+
+        return RedirectToAction(nameof(Index), new { query, userId });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> DeleteChild(Guid userId, Guid childId, [FromQuery] string? query, CancellationToken ct = default)
+    {
+        try
+        {
+            var client = apiClient.CreateAuthenticatedClient();
+            var response = await client.DeleteAsync($"/api/admin/users/{userId}/children/{childId}", ct);
+            response.EnsureSuccessStatusCode();
+        }
+        catch { /* swallow */ }
+
+        return RedirectToAction(nameof(Index), new { query, userId });
+    }
+
     private sealed record SearchResponse(int Total, List<SearchItem> Items);
     private sealed record SearchItem(Guid UserId, string Email, string? PhoneNumber, string Role, string? FullName, DateTimeOffset CreatedAt);
 
     private sealed record LimitsDto(string Plan, int MaxOrganizations, int MaxSeatsPerOrganization, int MaxChildren);
     private sealed record SubscriptionDto(Guid Id, string Provider, string ProviderSubscriptionId, string Status, DateTimeOffset? CurrentPeriodStart, DateTimeOffset? CurrentPeriodEnd, DateTimeOffset UpdatedAt);
     private sealed record SeatAssignmentDto(Guid SeatId, Guid OrganizationId, string SeatStatus);
-    private sealed record ChildDto(Guid Id, string DisplayName, DateTimeOffset CreatedAt);
+    private sealed record ChildDto(Guid Id, string DisplayName, int? Age, DateTimeOffset CreatedAt);
 
     private sealed record UserSummaryResponse(
         Guid UserId,

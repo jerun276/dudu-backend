@@ -35,7 +35,7 @@ public class UsersIndexViewModel
 
     public record SeatAssignmentVm(Guid SeatId, Guid OrganizationId, string SeatStatus);
 
-    public record ChildVm(Guid Id, string DisplayName, DateTimeOffset CreatedAt);
+    public record ChildVm(Guid Id, string DisplayName, int? Age, DateTimeOffset CreatedAt);
 
     public record UserSummaryVm(
         Guid UserId,

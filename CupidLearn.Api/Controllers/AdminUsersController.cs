@@ -32,6 +32,36 @@ public class AdminUsersController(IAdminUsersService adminUsersService) : Contro
         return Ok(resp);
     }
 
+    [HttpPost("{userId:guid}/children")]
+    public async Task<ActionResult<AdminChildResponse>> CreateChild(Guid userId, [FromBody] AdminChildCreateRequest request, CancellationToken ct)
+    {
+        var authUserId = GetUserId();
+        var role = User.FindFirstValue(ClaimTypes.Role);
+
+        var resp = await adminUsersService.CreateChildAsync(authUserId, role, userId, request, ct);
+        return StatusCode(StatusCodes.Status201Created, resp);
+    }
+
+    [HttpPut("{userId:guid}/children/{childId:guid}")]
+    public async Task<ActionResult<AdminChildResponse>> UpdateChild(Guid userId, Guid childId, [FromBody] AdminChildUpdateRequest request, CancellationToken ct)
+    {
+        var authUserId = GetUserId();
+        var role = User.FindFirstValue(ClaimTypes.Role);
+
+        var resp = await adminUsersService.UpdateChildAsync(authUserId, role, childId, request, ct);
+        return Ok(resp);
+    }
+
+    [HttpDelete("{userId:guid}/children/{childId:guid}")]
+    public async Task<IActionResult> DeleteChild(Guid userId, Guid childId, CancellationToken ct)
+    {
+        var authUserId = GetUserId();
+        var role = User.FindFirstValue(ClaimTypes.Role);
+
+        await adminUsersService.DeleteChildAsync(authUserId, role, childId, ct);
+        return NoContent();
+    }
+
     private Guid GetUserId()
     {
         var idStr = User.FindFirstValue(ClaimTypes.Name) ?? User.FindFirstValue(ClaimTypes.NameIdentifier);

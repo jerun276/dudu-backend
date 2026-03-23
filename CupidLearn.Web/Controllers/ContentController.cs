@@ -54,7 +54,7 @@ public class ContentController(ApiClient apiClient) : Controller
             if (lessonId.HasValue)
             {
                 var activities = await client.GetFromJsonAsync<List<ActivityDto>>($"/api/content/lessons/{lessonId.Value}/activities", ct) ?? [];
-                vm.Activities = activities.Select(x => new ContentIndexViewModel.ActivityVm(x.Id, x.LessonId, x.Type, x.Title, x.ImageUrl, x.OrderIndex)).ToList();
+                vm.Activities = activities.Select(x => new ContentIndexViewModel.ActivityVm(x.Id, x.LessonId, x.Type, x.Title, x.ImageUrl, x.OrderIndex, x.Payload.HasValue ? JsonSerializer.Serialize(x.Payload.Value) : null)).ToList();
 
                 var quizzes = await client.GetFromJsonAsync<List<QuizDto>>($"/api/content/lessons/{lessonId.Value}/quizzes", ct) ?? [];
                 vm.Quizzes = quizzes.Select(x => new ContentIndexViewModel.QuizVm(x.Id, x.LessonId, x.Title)).ToList();
@@ -348,6 +348,24 @@ public class ContentController(ApiClient apiClient) : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteLesson([FromForm] Guid id, [FromForm] string? language, [FromForm] Guid? levelId, [FromForm] Guid moduleId, CancellationToken ct)
+    {
+        var client = apiClient.CreateAuthenticatedClient();
+        using var resp = await client.DeleteAsync($"/api/content/lessons/{id}", ct);
+
+        if (!resp.IsSuccessStatusCode)
+        {
+            var body = await resp.Content.ReadAsStringAsync(ct);
+            TempData["Error"] = $"Failed to delete lesson. {(int)resp.StatusCode} {resp.ReasonPhrase}. {body}";
+            return RedirectToIndexWithContext(language, levelId, moduleId, id, null);
+        }
+
+        TempData["Success"] = "Lesson deleted.";
+        return RedirectToIndexWithContext(language, levelId, moduleId, null, null);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateActivity(CreateActivityViewModel model, CancellationToken ct)
     {
         if (!ModelState.IsValid)
@@ -390,6 +408,69 @@ public class ContentController(ApiClient apiClient) : Controller
         TempData["Success"] = "Activity created.";
 
         return RedirectToAction("Index", new { lessonId = model.LessonId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteActivity([FromForm] Guid id, [FromForm] string? language, [FromForm] Guid? levelId, [FromForm] Guid? moduleId, [FromForm] Guid lessonId, CancellationToken ct)
+    {
+        var client = apiClient.CreateAuthenticatedClient();
+        using var resp = await client.DeleteAsync($"/api/content/activities/{id}", ct);
+
+        if (!resp.IsSuccessStatusCode)
+        {
+            var body = await resp.Content.ReadAsStringAsync(ct);
+            TempData["Error"] = $"Failed to delete activity. {(int)resp.StatusCode} {resp.ReasonPhrase}. {body}";
+            return RedirectToIndexWithContext(language, levelId, moduleId, lessonId, null);
+        }
+
+        TempData["Success"] = "Activity deleted.";
+        return RedirectToIndexWithContext(language, levelId, moduleId, lessonId, null);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateActivity(UpdateActivityViewModel model, CancellationToken ct)
+    {
+        if (!ModelState.IsValid)
+        {
+            TempData["Error"] = "Please fill all required fields.";
+            return RedirectToIndexWithContext(model.Language, model.LevelId, model.ModuleId, model.LessonId, null);
+        }
+
+        JsonElement? payload = null;
+        if (!string.IsNullOrWhiteSpace(model.PayloadJson))
+        {
+            try
+            {
+                payload = JsonSerializer.Deserialize<JsonElement>(model.PayloadJson);
+            }
+            catch
+            {
+                TempData["Error"] = "Payload JSON is not valid JSON. Please fix it and try again.";
+                return RedirectToIndexWithContext(model.Language, model.LevelId, model.ModuleId, model.LessonId, null);
+            }
+        }
+
+        var client = apiClient.CreateAuthenticatedClient();
+        using var resp = await client.PutAsJsonAsync($"/api/content/activities/{model.Id}", new
+        {
+            type = model.Type,
+            title = model.Title,
+            imageUrl = model.ImageUrl,
+            payload,
+            orderIndex = model.OrderIndex
+        }, ct);
+
+        if (!resp.IsSuccessStatusCode)
+        {
+            var body = await resp.Content.ReadAsStringAsync(ct);
+            TempData["Error"] = $"Failed to update activity. {(int)resp.StatusCode} {resp.ReasonPhrase}. {body}";
+            return RedirectToIndexWithContext(model.Language, model.LevelId, model.ModuleId, model.LessonId, null);
+        }
+
+        TempData["Success"] = "Activity updated.";
+        return RedirectToIndexWithContext(model.Language, model.LevelId, model.ModuleId, model.LessonId, null);
     }
 
     [HttpPost]

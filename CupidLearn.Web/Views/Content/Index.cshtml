@@ -377,17 +377,29 @@
                             @foreach (var l in Model.Lessons.OrderBy(x => x.OrderIndex))
                             {
                                 var isActive = Model.SelectedLessonId == l.Id;
-                                <a href="@Url.Action("Index", new { language = Model.Language, levelId = Model.SelectedLevelId, moduleId = Model.SelectedModuleId, lessonId = l.Id })"
-                                   class="flex items-center justify-between px-3 py-2.5 rounded-xl border @(isActive ? "border-indigo-200 bg-indigo-50" : "border-slate-100 hover:bg-slate-50") transition-colors">
-                                    <div class="min-w-0 flex-1">
-                                        <div class="text-sm font-medium @(isActive ? "text-indigo-700" : "text-slate-800") truncate">@l.Title</div>
-                                        @if (!string.IsNullOrWhiteSpace(l.Description))
-                                        {
-                                            <div class="text-xs text-slate-400 truncate">@l.Description</div>
-                                        }
+                                <div class="rounded-xl border @(isActive ? "border-indigo-200 bg-indigo-50" : "border-slate-100 bg-white hover:bg-slate-50") transition-colors">
+                                    <div class="flex items-center justify-between px-3 py-2.5">
+                                        <a href="@Url.Action("Index", new { language = Model.Language, levelId = Model.SelectedLevelId, moduleId = Model.SelectedModuleId, lessonId = l.Id })" class="flex-1 min-w-0">
+                                            <div class="text-sm font-medium @(isActive ? "text-indigo-700" : "text-slate-800") truncate">@l.Title</div>
+                                            @if (!string.IsNullOrWhiteSpace(l.Description))
+                                            {
+                                                <div class="text-xs text-slate-400 truncate">@l.Description</div>
+                                            }
+                                        </a>
+                                        <div class="flex items-center gap-1 ml-2 flex-shrink-0">
+                                            @if (isActive) { <span class="text-xs bg-indigo-600 text-white px-2 py-0.5 rounded-md">Selected</span> }
+                                            <span class="text-xs text-slate-400 mx-1 font-mono">#@l.OrderIndex</span>
+                                            <form asp-action="DeleteLesson" method="post" class="inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@l.Id" />
+                                                <input type="hidden" name="moduleId" value="@Model.SelectedModuleId" />
+                                                <input type="hidden" name="levelId" value="@Model.SelectedLevelId" />
+                                                <input type="hidden" name="language" value="@Model.Language" />
+                                                <button type="submit" class="@btnDanger">Del</button>
+                                            </form>
+                                        </div>
                                     </div>
-                                    <span class="text-xs text-slate-400 ml-2 flex-shrink-0 font-mono">#@l.OrderIndex</span>
-                                </a>
+                                </div>
                             }
                         </div>
                     }
@@ -607,6 +619,7 @@
                                     <th class="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Title</th>
                                     <th class="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Image</th>
                                     <th class="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">ID</th>
+                                    <th class="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Actions</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-50">
@@ -623,11 +636,28 @@
                                             }
                                         </td>
                                         <td class="px-4 py-3 text-slate-400 text-xs font-mono truncate max-w-[160px]">@a.Id</td>
+                                        <td class="px-4 py-3 text-right">
+                                            <div class="flex items-center justify-end gap-2">
+                                                <button type="button" class="@btnSecondary" 
+                                                        onclick="openEditActivityModal('@a.Id', '@a.Type', `@a.Title.Replace("'", "\\'")`, '@a.ImageUrl', '@a.OrderIndex', `@a.PayloadJson?.Replace("`", "\\`")`)">
+                                                    Edit
+                                                </button>
+                                                <form asp-action="DeleteActivity" method="post" class="inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@a.Id" />
+                                                <input type="hidden" name="lessonId" value="@Model.SelectedLessonId" />
+                                                <input type="hidden" name="moduleId" value="@Model.SelectedModuleId" />
+                                                <input type="hidden" name="levelId" value="@Model.SelectedLevelId" />
+                                                <input type="hidden" name="language" value="@Model.Language" />
+                                                <button type="submit" class="@btnDanger">Del</button>
+                                                </form>
+                                            </div>
+                                        </td>
                                     </tr>
                                 }
                                 @if (!Model.Activities.Any())
                                 {
-                                    <tr><td colspan="5" class="px-4 py-8 text-center text-slate-400 text-sm">No activities yet. Create one above.</td></tr>
+                                    <tr><td colspan="6" class="px-4 py-8 text-center text-slate-400 text-sm">No activities yet. Create one above.</td></tr>
                                 }
                             </tbody>
                         </table>
@@ -816,3 +846,216 @@
     </div>
 
 </div>
+<!-- Edit Activity Modal -->
+<div id="editActivityModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
+            <h3 class="text-base font-semibold text-slate-800">Edit Activity</h3>
+            <button onclick="closeEditActivityModal()" class="text-slate-400 hover:text-slate-600">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+        </div>
+        <div class="p-6">
+            <form asp-action="UpdateActivity" method="post" class="space-y-4">
+                @Html.AntiForgeryToken()
+                <input type="hidden" id="edit-activity-id" name="Id" />
+                <input type="hidden" name="LessonId" value="@Model.SelectedLessonId" />
+                <input type="hidden" name="Language" value="@Model.Language" />
+                <input type="hidden" name="LevelId" value="@Model.SelectedLevelId" />
+                <input type="hidden" name="ModuleId" value="@Model.SelectedModuleId" />
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1.5">Type</label>
+                        <select id="edit-activity-type" name="Type" class="@inputCls">
+                            @foreach (var t in Model.ActivityTypes.OrderBy(x => x.DisplayName))
+                            {
+                                var schemaB64 = string.IsNullOrWhiteSpace(t.SchemaJson)
+                                    ? string.Empty
+                                    : Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(t.SchemaJson));
+                                <option value="@t.Key" data-schema-b64="@schemaB64">@t.DisplayName (@t.Key)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-medium text-slate-600 mb-1.5">Title</label>
+                        <input id="edit-activity-title" name="Title" class="@inputCls" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1.5">Order</label>
+                        <input id="edit-activity-order" name="OrderIndex" type="number" class="@inputCls" />
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1.5">Image URL</label>
+                    <input id="edit-activity-image-url" name="ImageUrl" class="@inputCls" />
+                </div>
+
+                <div class="border border-slate-200 rounded-xl p-3 bg-slate-50">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="text-xs font-semibold text-slate-600">Payload Editor</div>
+                        <p class="text-[10px] text-slate-400">Edits here will update the JSON below</p>
+                    </div>
+                    <div id="edit-payload-fields" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1.5">Payload JSON</label>
+                    <textarea id="edit-payload-json" name="PayloadJson" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" rows="8"></textarea>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="closeEditActivityModal()" class="@btnSecondary">Cancel</button>
+                    <button type="submit" class="@btnPrimary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openEditActivityModal(id, type, title, imageUrl, order, payloadJson) {
+        document.getElementById('edit-activity-id').value = id;
+        document.getElementById('edit-activity-type').value = type;
+        document.getElementById('edit-activity-title').value = title;
+        document.getElementById('edit-activity-image-url').value = imageUrl || '';
+        document.getElementById('edit-activity-order').value = order;
+        document.getElementById('edit-payload-json').value = payloadJson || '{}';
+        
+        document.getElementById('editActivityModal').classList.remove('hidden');
+        
+        // Trigger schema editor initialization for the edit modal
+        // We'll need a slightly modified version of the schema editor logic for this modal
+        if (typeof initEditPayloadSchemaEditor === 'function') {
+            initEditPayloadSchemaEditor();
+        }
+    }
+
+    function closeEditActivityModal() {
+        document.getElementById('editActivityModal').classList.add('hidden');
+    }
+
+    // Reuse and adapt schema editor logic for Edit Modal
+    function initEditPayloadSchemaEditor() {
+        const typeSelect = document.getElementById('edit-activity-type');
+        const payloadFieldsEl = document.getElementById('edit-payload-fields');
+        const payloadJsonEl = document.getElementById('edit-payload-json');
+        const activityTitleEl = document.getElementById('edit-activity-title');
+        const activityImageUrlEl = document.getElementById('edit-activity-image-url');
+
+        if (!typeSelect || !payloadFieldsEl || !payloadJsonEl) return;
+
+        let currentSchema = null;
+        function safeAtob(b64) { if (!b64) return ''; try { return atob(b64); } catch { return ''; } }
+        function tryParseJson(text) { if (!text) return null; try { return JSON.parse(text); } catch { return null; } }
+        
+        function setPayloadJson(payloadObj) { payloadJsonEl.value = JSON.stringify(payloadObj ?? {}, null, 2); }
+        function getPayloadObjFromTextarea() { 
+            const text = payloadJsonEl.value.trim();
+            const parsed = tryParseJson(text.length > 0 ? text : '{}'); 
+            return parsed && typeof parsed === 'object' ? parsed : {}; 
+        }
+        function updatePayloadKey(key, value) { const obj = getPayloadObjFromTextarea(); obj[key] = value; setPayloadJson(obj); }
+        
+        function getUi(schema) { return (schema && typeof schema.ui === 'object' && schema.ui) ? schema.ui : {}; }
+        function getLabel(schema, key) { const ui = getUi(schema); if (ui.labels && typeof ui.labels[key] === 'string') return ui.labels[key]; return key; }
+        function getHelp(schema, key) { const ui = getUi(schema); if (ui.help && typeof ui.help[key] === 'string') return ui.help[key]; return null; }
+        function getPlaceholder(schema, key) { const ui = getUi(schema); if (ui.placeholders && typeof ui.placeholders[key] === 'string') return ui.placeholders[key]; return null; }
+        function getWidget(schema, key) { const ui = getUi(schema); const w = ui.widgets && ui.widgets[key]; if (w && typeof w === 'object' && typeof w.type === 'string') return w; return null; }
+        function getOrderedKeys(schema) {
+            const props = (schema && schema.properties) ? schema.properties : {};
+            const ui = getUi(schema);
+            const order = Array.isArray(ui.order) ? ui.order.filter(k => k in props) : [];
+            const remaining = Object.keys(props).filter(k => !order.includes(k));
+            return [...order, ...remaining];
+        }
+
+        function renderField(schema, key, def, requiredKeys) {
+            const isRequired = requiredKeys.includes(key);
+            const widget = getWidget(schema, key);
+            const placeholder = getPlaceholder(schema, key);
+            const help = getHelp(schema, key);
+            const col = document.createElement('div');
+            col.className = 'col-span-1';
+            const label = document.createElement('label');
+            label.className = 'block text-[10px] font-medium text-slate-500 mb-1';
+            label.textContent = getLabel(schema, key) + (isRequired ? ' *' : '');
+            col.appendChild(label);
+            const current = getPayloadObjFromTextarea();
+            const currentVal = current[key];
+            const inputBase = 'w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500';
+            
+            if (def && def.enum && Array.isArray(def.enum)) {
+                const select = document.createElement('select');
+                select.className = inputBase;
+                def.enum.forEach((opt) => { const o = document.createElement('option'); o.value = String(opt); o.textContent = String(opt); select.appendChild(o); });
+                if (currentVal !== undefined && currentVal !== null) select.value = String(currentVal);
+                select.addEventListener('change', () => updatePayloadKey(key, select.value));
+                col.appendChild(select);
+            } else if ((widget && widget.type === 'textarea') || (def && def.type === 'string' && (def.maxLength || 0) > 120)) {
+                const ta = document.createElement('textarea');
+                ta.className = inputBase;
+                ta.rows = (widget && typeof widget.rows === 'number') ? widget.rows : 3;
+                if (placeholder) ta.placeholder = placeholder;
+                ta.value = currentVal !== undefined && currentVal !== null ? String(currentVal) : '';
+                ta.addEventListener('input', () => updatePayloadKey(key, ta.value));
+                col.appendChild(ta);
+            } else if ((widget && widget.type === 'checkbox') || (def && def.type === 'boolean')) {
+                const wrap = document.createElement('div'); wrap.className = 'flex items-center gap-2 mt-1';
+                const cb = document.createElement('input'); cb.className = 'rounded'; cb.type = 'checkbox'; cb.checked = Boolean(currentVal);
+                cb.addEventListener('change', () => updatePayloadKey(key, cb.checked));
+                wrap.appendChild(cb); col.appendChild(wrap);
+            } else if ((widget && widget.type === 'number') || (def && (def.type === 'number' || def.type === 'integer'))) {
+                const input = document.createElement('input'); input.className = inputBase; input.type = 'number';
+                input.value = (currentVal !== undefined && currentVal !== null) ? String(currentVal) : '';
+                input.addEventListener('input', () => { const n = input.value === '' ? null : Number(input.value); updatePayloadKey(key, n); });
+                col.appendChild(input);
+            } else {
+                const input = document.createElement('input'); input.className = inputBase;
+                input.type = (widget && widget.type === 'url') || (def && def.format === 'uri') ? 'url' : 'text';
+                if (placeholder) input.placeholder = placeholder;
+                input.value = currentVal !== undefined && currentVal !== null ? String(currentVal) : '';
+                input.addEventListener('input', () => updatePayloadKey(key, input.value));
+                col.appendChild(input);
+            }
+            if (help) { const helpEl = document.createElement('div'); helpEl.className = 'text-[9px] text-slate-400 mt-1'; helpEl.textContent = help; col.appendChild(helpEl); }
+            return col;
+        }
+
+        function renderPayloadEditorFromSchema(schema) {
+            payloadFieldsEl.innerHTML = '';
+            if (!schema || schema.type !== 'object' || !schema.properties) return;
+            const requiredKeys = Array.isArray(schema.required) ? schema.required : [];
+            const keys = getOrderedKeys(schema);
+            keys.forEach((key) => { const def = schema.properties[key] || {}; const el = renderField(schema, key, def, requiredKeys); payloadFieldsEl.appendChild(el); });
+        }
+
+        function syncActivityFieldsIntoPayload() {
+            if (!currentSchema) return;
+            const ui = getUi(currentSchema);
+            const mapping = ui && typeof ui.activityFields === 'object' && ui.activityFields ? ui.activityFields : null;
+            if (!mapping) return;
+            const titleKey = typeof mapping.title === 'string' ? mapping.title : null;
+            const imageUrlKey = typeof mapping.imageUrl === 'string' ? mapping.imageUrl : null;
+            if (activityTitleEl && titleKey) updatePayloadKey(titleKey, activityTitleEl.value ?? '');
+            if (activityImageUrlEl && imageUrlKey) updatePayloadKey(imageUrlKey, activityImageUrlEl.value ?? '');
+        }
+
+        function onTypeChanged() {
+            const opt = typeSelect.options[typeSelect.selectedIndex];
+            const schemaB64 = opt ? opt.getAttribute('data-schema-b64') : '';
+            const schemaText = safeAtob(schemaB64 || '');
+            const schema = tryParseJson(schemaText);
+            currentSchema = schema;
+            renderPayloadEditorFromSchema(schema);
+        }
+
+        typeSelect.addEventListener('change', onTypeChanged);
+        payloadJsonEl.addEventListener('input', onTypeChanged);
+        if (activityTitleEl) activityTitleEl.addEventListener('input', syncActivityFieldsIntoPayload);
+        if (activityImageUrlEl) activityImageUrlEl.addEventListener('input', syncActivityFieldsIntoPayload);
+
+        onTypeChanged();
+    }
+</script>

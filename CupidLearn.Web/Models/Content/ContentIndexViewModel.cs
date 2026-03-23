@@ -31,7 +31,7 @@ public class ContentIndexViewModel
 
     public record LessonVm(Guid Id, Guid ModuleId, string Title, string? Description, int OrderIndex);
 
-    public record ActivityVm(Guid Id, Guid LessonId, string Type, string Title, string? ImageUrl, int OrderIndex);
+    public record ActivityVm(Guid Id, Guid LessonId, string Type, string Title, string? ImageUrl, int OrderIndex, string? PayloadJson);
 
     public record QuizVm(Guid Id, Guid LessonId, string Title);
 

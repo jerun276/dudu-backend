@@ -1,5 +1,5 @@
 using Microsoft.OpenApi.Models;
-
+using Microsoft.EntityFrameworkCore;
 using CupidLearn.Api.Infrastructure;
 using CupidLearn.Infrastructure;
 using CupidLearn.Infrastructure.Seeding;
@@ -83,6 +83,9 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
+    var db = scope.ServiceProvider.GetRequiredService<CupidLearn.Infrastructure.Data.AppDbContext>();
+    await db.Database.MigrateAsync(CancellationToken.None);
+
     var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
     await seeder.SeedAsync(CancellationToken.None);
 }

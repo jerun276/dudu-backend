@@ -12,39 +12,27 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
-if (builder.Environment.IsDevelopment())
+// Unconditionally load .env if it exists (for server debugging)
+var envPath = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", ".env"));
+if (File.Exists(envPath))
 {
-    var envPath = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", ".env"));
-    if (File.Exists(envPath))
+    var envValues = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+    foreach (var rawLine in File.ReadAllLines(envPath))
     {
-        var envValues = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-        foreach (var rawLine in File.ReadAllLines(envPath))
-        {
-            var line = rawLine.Trim();
-            if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#'))
-            {
-                continue;
-            }
+        var line = rawLine.Trim();
+        if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#')) continue;
 
-            var equalsIndex = line.IndexOf('=');
-            if (equalsIndex <= 0)
-            {
-                continue;
-            }
+        var equalsIndex = line.IndexOf('=');
+        if (equalsIndex <= 0) continue;
 
-            var key = line[..equalsIndex].Trim();
-            var value = line[(equalsIndex + 1)..].Trim();
-            if (key.Length == 0)
-            {
-                continue;
-            }
+        var key = line[..equalsIndex].Trim();
+        var value = line[(equalsIndex + 1)..].Trim();
+        if (key.Length == 0) continue;
 
-            var normalizedKey = key.Replace("__", ":", StringComparison.Ordinal);
-            envValues[normalizedKey] = value;
-        }
-
-        builder.Configuration.AddInMemoryCollection(envValues);
+        var normalizedKey = key.Replace("__", ":", StringComparison.Ordinal);
+        envValues[normalizedKey] = value;
     }
+    builder.Configuration.AddInMemoryCollection(envValues);
 }
 
 builder.Services.AddControllers();
@@ -88,93 +76,15 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-    // Diagnostic Logging
-    var assembly = typeof(AppDbContext).Assembly;
-    logger.LogInformation("Checking migrations in assembly: {AssemblyName}", assembly.FullName);
-    logger.LogInformation("Assembly Location: {Location}", assembly.Location);
-
-    // Nuclear Diagnostic: Print all loaded assemblies starting with CupidLearn
-    var loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies()
-        .Where(a => a.FullName.StartsWith("CupidLearn"))
-        .ToList();
-    
-    foreach (var a in loadedAssemblies)
-    {
-        logger.LogInformation("Loaded Assembly: {Name} at {Path}", a.FullName ?? "Unknown", a.Location ?? "Unknown");
-    }
-
-    // Compilable Reference Test:
-    logger.LogInformation("Migration Source Check: {Status}", InitialCreate.DiagnosticId);
-    
-    // Nuclear Type Scan
-    var allTypes = assembly.GetTypes();
-    var migrationTypes = allTypes
-        .Where(t => t.Name.Contains("InitialCreate") || (t.BaseType != null && t.BaseType.Name == "Migration"))
-        .Select(t => t.FullName ?? t.Name)
-        .ToList();
-
-    if (migrationTypes.Any())
-    {
-        logger.LogInformation("DIAGNOSTIC: Found {Count} migration-related types in binary: {List}", migrationTypes.Count, string.Join(", ", migrationTypes));
-        
-        var contextType = typeof(AppDbContext);
-        logger.LogInformation("Runtime Context Type: {FullName} from {Assembly}", contextType.FullName, contextType.Assembly.FullName);
-
-        foreach (var tName in migrationTypes)
-        {
-            var typeObj = allTypes.FirstOrDefault(x => x.FullName == tName);
-            if (typeObj != null)
-            {
-                var attrs = typeObj.GetCustomAttributes(true);
-                logger.LogInformation("Migration {Name} has {Count} attributes: {List}", 
-                    tName, attrs.Length, string.Join(", ", attrs.Select(a => a.GetType().FullName)));
-                
-                var dbContextAttr = typeObj.GetCustomAttribute<DbContextAttribute>();
-                logger.LogInformation("Migration {Name} DbContextAttribute via GetCustomAttribute: {TargetContext}", 
-                    tName, dbContextAttr?.ContextType.FullName ?? "NULL");
-
-                var migrationAttr = typeObj.GetCustomAttribute<MigrationAttribute>();
-                logger.LogInformation("Migration {Name} MigrationAttribute via GetCustomAttribute: {Id}", 
-                    tName, migrationAttr?.Id ?? "NULL");
-                
-                if (dbContextAttr != null && dbContextAttr.ContextType != contextType)
-                {
-                    logger.LogWarning("MISMATCH DETECTED! Migration Context ({MigrationContext}) != Runtime Context ({RuntimeContext})", 
-                        dbContextAttr.ContextType.AssemblyQualifiedName, contextType.AssemblyQualifiedName);
-                }
-            }
-        }
-    }
-    else
-    {
-        logger.LogWarning("DIAGNOSTIC: NO MIGRATION TYPES FOUND IN BINARY BY NAME!");
-    }
-
-    try 
-    {
-        logger.LogInformation("Applying migrations...");
-        await db.Database.MigrateAsync(CancellationToken.None);
-        logger.LogInformation("Migrations applied successfully.");
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "Error applying migrations");
-        throw;
-    }
-
+    await db.Database.MigrateAsync(CancellationToken.None);
     var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
     await seeder.SeedAsync(CancellationToken.None);
 }
 
+app.UseDeveloperExceptionPage(); // UNCONDITIONAL for debugging post-login crash
 app.UseGlobalExceptionHandling();
-
-if (app.Environment.IsDevelopment())
-{
-    app.UseCors("DevCors");
-}
+app.UseCors("DevCors"); // UNCONDITIONAL for testing from browser/mobile
 
 app.UseSwagger();
 app.UseSwaggerUI(c =>

@@ -6,16 +6,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Compile Remove="Data\AppDbContext.cs" />
-    <Compile Remove="Domain\**\*.cs" />
-    <Compile Remove="Infrastructure\Seeding\**\*.cs" />
-    <Compile Remove="Infrastructure\JwtOptions.cs" />
-    <Compile Remove="Infrastructure\JwtModule.cs" />
-    <Compile Remove="Infrastructure\JwtTokenService.cs" />
-    <Compile Remove="Migrations\**\*.cs" />
-    <Compile Remove="Controllers\ContentController.cs" />
-  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.3" />

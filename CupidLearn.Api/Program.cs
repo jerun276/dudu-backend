@@ -92,6 +92,17 @@ using (var scope = app.Services.CreateScope())
     // Diagnostic Logging
     var assembly = typeof(AppDbContext).Assembly;
     logger.LogInformation("Checking migrations in assembly: {AssemblyName}", assembly.FullName);
+    logger.LogInformation("Assembly Location: {Location}", assembly.Location);
+
+    // Nuclear Diagnostic: Print all loaded assemblies starting with CupidLearn
+    var loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies()
+        .Where(a => a.FullName.StartsWith("CupidLearn"))
+        .ToList();
+    
+    foreach (var a in loadedAssemblies)
+    {
+        logger.LogInformation("Loaded Assembly: {Name} at {Path}", a.FullName, a.Location);
+    }
     
     var migrations = assembly.GetTypes()
         .Where(t => t.GetCustomAttribute<MigrationAttribute>() != null)

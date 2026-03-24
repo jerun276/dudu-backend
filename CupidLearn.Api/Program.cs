@@ -8,6 +8,7 @@ using CupidLearn.Infrastructure.Seeding;
 using CupidLearn.Api.Infrastructure.Swagger;
 using CupidLearn.Infrastructure.Data;
 using CupidLearn.Infrastructure.Migrations;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -102,7 +103,7 @@ using (var scope = app.Services.CreateScope())
     
     foreach (var a in loadedAssemblies)
     {
-        logger.LogInformation("Loaded Assembly: {Name} at {Path}", a.FullName, a.Location);
+        logger.LogInformation("Loaded Assembly: {Name} at {Path}", a.FullName ?? "Unknown", a.Location ?? "Unknown");
     }
 
     // Compilable Reference Test:

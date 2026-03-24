@@ -1,0 +1,48 @@
+name: Deploy backend to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'cupid-backend-dotnet/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish API
+        run: dotnet publish cupid-backend-dotnet/CupidLearn.Api/CupidLearn.Api.csproj -c Release -o ./publish/api
+
+      - name: Publish Web Admin
+        run: dotnet publish cupid-backend-dotnet/CupidLearn.Web/CupidLearn.Web.csproj -c Release -o ./publish/web
+
+      - name: Deploy to EC2 via SSH/SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          source: "publish/api/*,publish/web/*"
+          target: "/home/ubuntu/"
+
+      - name: Restart systemd Services on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            sudo cp -rT /home/ubuntu/publish/api /home/ubuntu/cupid-api
+            sudo cp -rT /home/ubuntu/publish/web /home/ubuntu/cupid-web
+            sudo systemctl restart cupid-api.service
+            sudo systemctl restart cupid-web.service

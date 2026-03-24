@@ -118,6 +118,25 @@ using (var scope = app.Services.CreateScope())
     if (migrationTypes.Any())
     {
         logger.LogInformation("DIAGNOSTIC: Found {Count} migration-related types in binary: {List}", migrationTypes.Count, string.Join(", ", migrationTypes));
+        
+        var contextType = typeof(AppDbContext);
+        logger.LogInformation("Runtime Context Type: {FullName} from {Assembly}", contextType.FullName, contextType.Assembly.FullName);
+
+        foreach (var tName in migrationTypes)
+        {
+            var typeObj = allTypes.FirstOrDefault(x => x.FullName == tName);
+            if (typeObj != null)
+            {
+                var dbContextAttr = typeObj.GetCustomAttribute<DbContextAttribute>();
+                logger.LogInformation("Migration {Name} DbContextAttribute: {TargetContext}", tName, dbContextAttr?.ContextType.FullName ?? "MISSING");
+                
+                if (dbContextAttr != null && dbContextAttr.ContextType != contextType)
+                {
+                    logger.LogWarning("MISMATCH DETECTED! Migration Context ({MigrationContext}) != Runtime Context ({RuntimeContext})", 
+                        dbContextAttr.ContextType.AssemblyQualifiedName, contextType.AssemblyQualifiedName);
+                }
+            }
+        }
     }
     else
     {

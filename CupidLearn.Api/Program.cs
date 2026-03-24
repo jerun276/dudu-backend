@@ -1,9 +1,12 @@
 using Microsoft.OpenApi.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
+using System.Reflection;
 using CupidLearn.Api.Infrastructure;
 using CupidLearn.Infrastructure;
 using CupidLearn.Infrastructure.Seeding;
 using CupidLearn.Api.Infrastructure.Swagger;
+using CupidLearn.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -83,8 +86,38 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<CupidLearn.Infrastructure.Data.AppDbContext>();
-    await db.Database.MigrateAsync(CancellationToken.None);
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    // Diagnostic Logging
+    var assembly = typeof(AppDbContext).Assembly;
+    logger.LogInformation("Checking migrations in assembly: {AssemblyName}", assembly.FullName);
+    
+    var migrations = assembly.GetTypes()
+        .Where(t => t.GetCustomAttribute<MigrationAttribute>() != null)
+        .Select(t => t.GetCustomAttribute<MigrationAttribute>()?.Id)
+        .ToList();
+
+    if (migrations.Any())
+    {
+        logger.LogInformation("Found {Count} migrations in assembly: {List}", migrations.Count, string.Join(", ", migrations));
+    }
+    else
+    {
+        logger.LogWarning("NO MIGRATIONS FOUND in assembly {AssemblyName} using reflection!", assembly.FullName);
+    }
+
+    try 
+    {
+        logger.LogInformation("Applying migrations...");
+        await db.Database.MigrateAsync(CancellationToken.None);
+        logger.LogInformation("Migrations applied successfully.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Error applying migrations");
+        throw;
+    }
 
     var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
     await seeder.SeedAsync(CancellationToken.None);

@@ -20,7 +20,7 @@ public static class DependencyInjection
         services.AddDbContext<AppDbContext>(options =>
         {
             var connectionString = configuration.GetConnectionString("Postgres");
-            options.UseNpgsql(connectionString, b => b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName));
+            options.UseNpgsql(connectionString, b => b.MigrationsAssembly("CupidLearn.Infrastructure"));
         });
 
         services.AddJwtModule(configuration);

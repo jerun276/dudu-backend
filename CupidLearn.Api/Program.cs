@@ -128,8 +128,17 @@ using (var scope = app.Services.CreateScope())
             var typeObj = allTypes.FirstOrDefault(x => x.FullName == tName);
             if (typeObj != null)
             {
+                var attrs = typeObj.GetCustomAttributes(true);
+                logger.LogInformation("Migration {Name} has {Count} attributes: {List}", 
+                    tName, attrs.Length, string.Join(", ", attrs.Select(a => a.GetType().FullName)));
+                
                 var dbContextAttr = typeObj.GetCustomAttribute<DbContextAttribute>();
-                logger.LogInformation("Migration {Name} DbContextAttribute: {TargetContext}", tName, dbContextAttr?.ContextType.FullName ?? "MISSING");
+                logger.LogInformation("Migration {Name} DbContextAttribute via GetCustomAttribute: {TargetContext}", 
+                    tName, dbContextAttr?.ContextType.FullName ?? "NULL");
+
+                var migrationAttr = typeObj.GetCustomAttribute<MigrationAttribute>();
+                logger.LogInformation("Migration {Name} MigrationAttribute via GetCustomAttribute: {Id}", 
+                    tName, migrationAttr?.Id ?? "NULL");
                 
                 if (dbContextAttr != null && dbContextAttr.ContextType != contextType)
                 {

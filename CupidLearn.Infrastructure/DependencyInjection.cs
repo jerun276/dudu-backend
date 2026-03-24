@@ -20,7 +20,7 @@ public static class DependencyInjection
         services.AddDbContext<AppDbContext>(options =>
         {
             var connectionString = configuration.GetConnectionString("Postgres");
-            options.UseNpgsql(connectionString);
+            options.UseNpgsql(connectionString, b => b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName));
         });
 
         services.AddJwtModule(configuration);

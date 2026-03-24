@@ -19,10 +19,10 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Publish API
-        run: dotnet publish cupid-backend-dotnet/CupidLearn.Api/CupidLearn.Api.csproj -c Release -o ./publish/api
+        run: dotnet publish CupidLearn.Api/CupidLearn.Api.csproj -c Release -o ./publish/api
 
       - name: Publish Web Admin
-        run: dotnet publish cupid-backend-dotnet/CupidLearn.Web/CupidLearn.Web.csproj -c Release -o ./publish/web
+        run: dotnet publish CupidLearn.Web/CupidLearn.Web.csproj -c Release -o ./publish/web
 
       - name: Deploy to EC2 via SSH/SCP
         uses: appleboy/scp-action@v0.1.7

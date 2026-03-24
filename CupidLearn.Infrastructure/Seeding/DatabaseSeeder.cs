@@ -20,6 +20,7 @@ public class DatabaseSeeder(
         await SeedAdminAsync(ct);
         await SeedActivityTypesAsync(ct);
         await SeedAlphabetModuleAsync(ct);
+        await SeedNumbersModuleAsync(ct);
     }
 
     private async Task SeedAdminAsync(CancellationToken ct)
@@ -203,6 +204,190 @@ public class DatabaseSeeder(
 
         await db.SaveChangesAsync(ct);
     }
+
+    private async Task SeedNumbersModuleAsync(CancellationToken ct)
+    {
+        var levelId = Guid.Parse("a2ee7703-8cdd-42e4-8653-506d8ee96b32");
+        var moduleId = Guid.Parse("d1b7e2a9-4b4d-4e9a-9f1a-2b3c4d5e6f7b");
+
+        var level = await db.Levels.FirstOrDefaultAsync(x => x.Id == levelId, ct);
+        if (level == null)
+        {
+            level = new CupidLearn.Domain.Content.Level
+            {
+                Id = levelId,
+                Language = "en",
+                Name = "Beginner"
+            };
+            db.Levels.Add(level);
+        }
+
+        var module = await db.Modules.FirstOrDefaultAsync(x => x.Id == moduleId, ct);
+        if (module == null)
+        {
+            module = new CupidLearn.Domain.Content.Module
+            {
+                Id = moduleId,
+                LevelId = levelId,
+                Name = "Numbers",
+                OrderIndex = 1
+            };
+            db.Modules.Add(module);
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        var anyLesson = await db.Lessons.AnyAsync(x => x.ModuleId == moduleId, ct);
+        if (anyLesson)
+        {
+            return;
+        }
+
+        var numbers = new[] { "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten" };
+        var activityPool = new[] { "MULTIPLE_CHOICE", "SHADOW_MATCH", "MEMORY_MATCH", "WORD_BUILDER", "SORTING_BINS", "STORY_SEQUENCER" };
+
+        for (int i = 0; i < numbers.Length; i++)
+        {
+            var numberName = numbers[i];
+            var val = i + 1;
+            var lessonId = Guid.NewGuid();
+
+            var lesson = new CupidLearn.Domain.Content.Lesson
+            {
+                Id = lessonId,
+                ModuleId = moduleId,
+                Title = $"Number {val}",
+                Description = $"Learn the number {val} ({numberName})",
+                OrderIndex = i
+            };
+            db.Lessons.Add(lesson);
+
+            // 1. Flashcard (Fixed)
+            db.LessonActivities.Add(new CupidLearn.Domain.Content.LessonActivity
+            {
+                Id = Guid.NewGuid(),
+                LessonId = lessonId,
+                Type = "FLASHCARD",
+                Title = $"Learn {val}",
+                OrderIndex = 0,
+                PayloadJson = $$"""
+                {
+                    "version": 1,
+                    "cardTitle": "{{val}}",
+                    "cardText": "{{val}} is {{numberName}}",
+                    "cardImageUrl": "https://anglomaniacy.pl/img/a-{{numberName}}.png",
+                    "cardAudioUrl": ""
+                }
+                """
+            });
+
+            // Randomly select 3 other activity types
+            var randomTypes = activityPool.OrderBy(x => Guid.NewGuid()).Take(3).ToList();
+
+            for (int j = 0; j < randomTypes.Count; j++)
+            {
+                var type = randomTypes[j];
+                var activityId = Guid.NewGuid();
+                string payload = "";
+
+                if (type == "MULTIPLE_CHOICE")
+                {
+                    var options = new List<string> { val.ToString(), (val + 1).ToString(), (val - 1).ToString(), (val + 2).ToString() };
+                    options = options.OrderBy(x => Guid.NewGuid()).ToList();
+                    var correctIndex = options.IndexOf(val.ToString());
+                    payload = $$"""
+                    {
+                        "version": 1,
+                        "questionText": "Find the number {{val}}",
+                        "options": [{{string.Join(",", options.Select(o => $"\"{o}\""))}}],
+                        "correctIndex": {{correctIndex}}
+                    }
+                    """;
+                }
+                else if (type == "SHADOW_MATCH")
+                {
+                    var options = new List<string> { 
+                        $"https://anglomaniacy.pl/img/a-{numberName}.png",
+                        $"https://anglomaniacy.pl/img/a-{numbers[(i + 1) % 10]}.png",
+                        $"https://anglomaniacy.pl/img/a-{numbers[(i + 2) % 10]}.png"
+                    };
+                    options = options.OrderBy(x => Guid.NewGuid()).ToList();
+                    var correctIndex = options.IndexOf($"https://anglomaniacy.pl/img/a-{numberName}.png");
+                    payload = $$"""
+                    {
+                        "version": 1,
+                        "mainImageUrl": "https://anglomaniacy.pl/img/a-{{numberName}}.png",
+                        "options": [{{string.Join(",", options.Select(o => $"\"{o}\""))}}],
+                        "correctIndex": {{correctIndex}}
+                    }
+                    """;
+                }
+                else if (type == "MEMORY_MATCH")
+                {
+                    payload = $$"""
+                    {
+                        "version": 2,
+                        "items": [
+                            "{{val}}",
+                            "https://anglomaniacy.pl/img/a-{{numberName}}.png"
+                        ]
+                    }
+                    """;
+                }
+                else if (type == "WORD_BUILDER")
+                {
+                    payload = $$"""
+                    {
+                        "version": 1,
+                        "targetImageUrl": "https://anglomaniacy.pl/img/a-{{numberName}}.png",
+                        "wordString": "{{numberName}}",
+                        "case": "lower"
+                    }
+                    """;
+                }
+                else if (type == "SORTING_BINS")
+                {
+                    payload = $$"""
+                    {
+                        "version": 1,
+                        "categories": ["Numbers", "Others"],
+                        "items": [
+                            {"text": "{{val}}", "categoryIndex": 0},
+                            {"text": "{{(val + 1) % 11}}", "categoryIndex": 1}
+                        ]
+                    }
+                    """;
+                }
+                else if (type == "STORY_SEQUENCER")
+                {
+                    var seq = new List<string> {
+                        $"https://anglomaniacy.pl/img/a-{numbers[i % 10]}.png",
+                        $"https://anglomaniacy.pl/img/a-{(i + 1 < 10 ? numbers[i + 1] : numbers[0])}.png",
+                        $"https://anglomaniacy.pl/img/a-{(i + 2 < 10 ? numbers[i + 2] : numbers[1])}.png"
+                    };
+                    payload = $$"""
+                    {
+                        "version": 1,
+                        "images": [{{string.Join(",", seq.Select(s => $"\"{s}\""))}}]
+                    }
+                    """;
+                }
+
+                db.LessonActivities.Add(new CupidLearn.Domain.Content.LessonActivity
+                {
+                    Id = activityId,
+                    LessonId = lessonId,
+                    Type = type,
+                    Title = $"{type.Replace("_", " ")} Practice",
+                    OrderIndex = j + 1,
+                    PayloadJson = payload
+                });
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
     private async Task SeedActivityTypesAsync(CancellationToken ct)
     {
         var types = new List<ActivityType>

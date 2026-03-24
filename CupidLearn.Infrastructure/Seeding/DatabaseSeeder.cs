@@ -1,3 +1,4 @@
+using CupidLearn.Domain.Content;
 using CupidLearn.Domain.Profiles;
 using CupidLearn.Domain.Users;
 using CupidLearn.Infrastructure.Data;
@@ -17,6 +18,7 @@ public class DatabaseSeeder(
     public async Task SeedAsync(CancellationToken ct)
     {
         await SeedAdminAsync(ct);
+        await SeedActivityTypesAsync(ct);
         await SeedAlphabetModuleAsync(ct);
     }
 
@@ -197,6 +199,204 @@ public class DatabaseSeeder(
                 }
                 """
             });
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+    private async Task SeedActivityTypesAsync(CancellationToken ct)
+    {
+        var types = new List<ActivityType>
+        {
+            new() { 
+                Key = "MULTIPLE_CHOICE", 
+                DisplayName = "Multiple Choice (Bubble Pop / Tap)", 
+                SchemaJson = """
+                {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "title": "Multiple Choice (Bubble Pop / Tap)",
+                  "type": "object",
+                  "properties": {
+                    "version": { "type": "integer", "const": 1 },
+                    "questionAudioUrl": { "type": "string", "format": "uri" },
+                    "questionText": { "type": "string" },
+                    "options": { "type": "array", "minItems": 2, "items": { "type": "string" } },
+                    "correctIndex": { "type": "integer", "minimum": 0 }
+                  },
+                  "required": ["version", "options", "correctIndex"],
+                  "ui": {
+                    "order": ["questionAudioUrl", "questionText", "options", "correctIndex"],
+                    "widgets": {
+                      "questionAudioUrl": { "type": "file-url" },
+                      "options": { "type": "string-array" }
+                    }
+                  }
+                }
+                """
+            },
+            new() { 
+                Key = "MAGIC_TRACE", 
+                DisplayName = "Magic Trace (Writing Practice)", 
+                SchemaJson = """
+                {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "title": "Magic Trace (Writing Practice)",
+                  "type": "object",
+                  "properties": {
+                    "version": { "type": "integer", "const": 3 },
+                    "instructionAudioUrl": { "type": "string", "format": "uri" },
+                    "imageUrl": { "type": "string", "format": "uri" },
+                    "tolerancePercent": { "type": "integer", "default": 80 }
+                  },
+                  "required": ["version", "imageUrl", "instructionAudioUrl"],
+                  "ui": {
+                    "widgets": {
+                      "instructionAudioUrl": { "type": "file-url" },
+                      "imageUrl": { "type": "file-url" }
+                    }
+                  }
+                }
+                """
+            },
+            new() { 
+                Key = "SHADOW_MATCH", 
+                DisplayName = "Shadow Match", 
+                SchemaJson = """
+                {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "title": "Shadow Match",
+                  "type": "object",
+                  "properties": {
+                    "version": { "type": "integer", "const": 1 },
+                    "mainImageUrl": { "type": "string", "format": "uri" },
+                    "options": { "type": "array", "items": { "type": "string", "format": "uri" } },
+                    "correctIndex": { "type": "integer" }
+                  },
+                  "required": ["version", "mainImageUrl", "options", "correctIndex"],
+                  "ui": {
+                    "widgets": {
+                      "mainImageUrl": { "type": "file-url" },
+                      "options": { "type": "file-url-array" }
+                    }
+                  }
+                }
+                """
+            },
+            new() { 
+                Key = "WORD_BUILDER", 
+                DisplayName = "Word Builder (Letter Train)", 
+                SchemaJson = """
+                {
+                   "type": "object",
+                   "properties": {
+                     "version": { "type": "integer", "const": 1 },
+                     "targetImageUrl": { "type": "string", "format": "uri" },
+                     "wordString": { "type": "string" },
+                     "case": { "type": "string", "enum": ["upper", "lower"] }
+                   },
+                   "required": ["version", "targetImageUrl", "wordString"],
+                   "ui": { "widgets": { "targetImageUrl": { "type": "file-url" } } }
+                }
+                """
+            },
+            new() { 
+                Key = "SORTING_BINS", 
+                DisplayName = "Sorting Bins", 
+                SchemaJson = """
+                {
+                  "type": "object",
+                  "properties": {
+                    "version": { "type": "integer", "const": 1 },
+                    "categories": { "type": "array", "items": { "type": "string" } },
+                    "items": { "type": "array", "items": { "type": "object" } }
+                  },
+                  "required": ["version", "categories", "items"]
+                }
+                """
+            },
+            new() { 
+                Key = "PARROT_MIC", 
+                DisplayName = "Parrot Mic", 
+                SchemaJson = """
+                {
+                  "type": "object",
+                  "properties": {
+                    "version": { "type": "integer", "const": 1 },
+                    "modelAudioUrl": { "type": "string", "format": "uri" },
+                    "targetText": { "type": "string" }
+                  },
+                  "required": ["version", "modelAudioUrl", "targetText"],
+                  "ui": { "widgets": { "modelAudioUrl": { "type": "file-url" } } }
+                }
+                """
+            },
+            new() { 
+                Key = "STORY_SEQUENCER", 
+                DisplayName = "Story Sequencer", 
+                SchemaJson = """
+                {
+                  "type": "object",
+                  "properties": {
+                    "version": { "type": "integer", "const": 1 },
+                    "images": { "type": "array", "items": { "type": "string", "format": "uri" } }
+                  },
+                  "required": ["version", "images"],
+                  "ui": { "widgets": { "images": { "type": "file-url-array" } } }
+                }
+                """
+            },
+            new() { 
+                Key = "MEMORY_MATCH", 
+                DisplayName = "Memory Match", 
+                SchemaJson = """
+                {
+                  "type": "object",
+                  "properties": {
+                    "version": { "type": "integer", "const": 2 },
+                    "items": { "type": "array", "items": { "type": "string" } }
+                  },
+                  "required": ["version", "items"],
+                  "ui": { "widgets": { "items": { "type": "string-array" } } }
+                }
+                """
+            },
+            new() { 
+                Key = "FLASHCARD", 
+                DisplayName = "Flashcard", 
+                SchemaJson = """
+                {
+                  "type": "object",
+                  "properties": {
+                    "version": { "type": "integer", "const": 1 },
+                    "cardTitle": { "type": "string" },
+                    "cardText": { "type": "string" },
+                    "cardImageUrl": { "type": "string", "format": "uri" },
+                    "cardAudioUrl": { "type": "string", "format": "uri" }
+                  },
+                  "required": ["version", "cardTitle"],
+                  "ui": {
+                    "widgets": {
+                      "cardImageUrl": { "type": "file-url" },
+                      "cardAudioUrl": { "type": "file-url" }
+                    }
+                  }
+                }
+                """
+            }
+        };
+
+        foreach (var type in types)
+        {
+            var existing = await db.ActivityTypes.FirstOrDefaultAsync(x => x.Key == type.Key, ct);
+            if (existing == null)
+            {
+                db.ActivityTypes.Add(type);
+            }
+            else
+            {
+                existing.DisplayName = type.DisplayName;
+                existing.SchemaJson = type.SchemaJson;
+                existing.UpdatedAt = DateTimeOffset.UtcNow;
+            }
         }
 
         await db.SaveChangesAsync(ct);

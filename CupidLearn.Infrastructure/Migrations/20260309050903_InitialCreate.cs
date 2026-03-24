@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -8,6 +8,7 @@ namespace CupidLearn.Infrastructure.Migrations
     /// <inheritdoc />
     public partial class InitialCreate : Migration
     {
+        public static string DiagnosticId => "MIGRATION_SOURCE_IS_VISIBLE";
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {

@@ -7,6 +7,7 @@ using CupidLearn.Infrastructure;
 using CupidLearn.Infrastructure.Seeding;
 using CupidLearn.Api.Infrastructure.Swagger;
 using CupidLearn.Infrastructure.Data;
+using CupidLearn.Infrastructure.Migrations;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -103,19 +104,24 @@ using (var scope = app.Services.CreateScope())
     {
         logger.LogInformation("Loaded Assembly: {Name} at {Path}", a.FullName, a.Location);
     }
+
+    // Compilable Reference Test:
+    logger.LogInformation("Migration Source Check: {Status}", InitialCreate.DiagnosticId);
     
-    var migrations = assembly.GetTypes()
-        .Where(t => t.GetCustomAttribute<MigrationAttribute>() != null)
-        .Select(t => t.GetCustomAttribute<MigrationAttribute>()?.Id)
+    // Nuclear Type Scan
+    var allTypes = assembly.GetTypes();
+    var migrationTypes = allTypes
+        .Where(t => t.Name.Contains("InitialCreate") || (t.BaseType != null && t.BaseType.Name == "Migration"))
+        .Select(t => t.FullName ?? t.Name)
         .ToList();
 
-    if (migrations.Any())
+    if (migrationTypes.Any())
     {
-        logger.LogInformation("Found {Count} migrations in assembly: {List}", migrations.Count, string.Join(", ", migrations));
+        logger.LogInformation("DIAGNOSTIC: Found {Count} migration-related types in binary: {List}", migrationTypes.Count, string.Join(", ", migrationTypes));
     }
     else
     {
-        logger.LogWarning("NO MIGRATIONS FOUND in assembly {AssemblyName} using reflection!", assembly.FullName);
+        logger.LogWarning("DIAGNOSTIC: NO MIGRATION TYPES FOUND IN BINARY BY NAME!");
     }
 
     try 

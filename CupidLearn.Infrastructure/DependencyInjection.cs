@@ -23,6 +23,7 @@ public static class DependencyInjection
         {
             var connectionString = configuration.GetConnectionString("Postgres");
             options.UseNpgsql(connectionString, b => b.MigrationsAssembly("CupidLearn.Infrastructure"));
+            options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         });
 
         services.AddJwtModule(configuration);
@@ -35,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<IContentQueryService, ContentQueryService>();
         services.AddScoped<IContentAdminService, ContentAdminService>();
         services.AddScoped<IProgressService, ProgressService>();
+        services.AddScoped<ICoinsService, CoinsService>();
         services.AddScoped<IExamAttemptService, ExamAttemptService>();
         services.AddScoped<ISubscriptionService, SubscriptionService>();
         services.AddScoped<IOrganizationSeatService, OrganizationSeatService>();

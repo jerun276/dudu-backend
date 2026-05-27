@@ -29,6 +29,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
     public DbSet<LessonProgress> LessonProgress => Set<LessonProgress>();
     public DbSet<Attempt> Attempts => Set<Attempt>();
+    public DbSet<CoinTransaction> CoinTransactions => Set<CoinTransaction>();
 
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<Organization> Organizations => Set<Organization>();
@@ -130,6 +131,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         });
 
         modelBuilder.Entity<LessonProgress>().HasKey(x => x.Id);
+        modelBuilder.Entity<LessonProgress>().HasIndex(x => new { x.ChildId, x.LessonId });
+
+        modelBuilder.Entity<CoinTransaction>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.UserId, x.ChildId });
+            e.Property(x => x.Reason).HasMaxLength(128);
+        });
         modelBuilder.Entity<Attempt>(e =>
         {
             e.HasKey(x => x.Id);

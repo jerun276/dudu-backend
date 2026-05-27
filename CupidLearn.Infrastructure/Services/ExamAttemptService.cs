@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CupidLearn.Infrastructure.Services;
 
-public class ExamAttemptService(AppDbContext db) : IExamAttemptService
+public class ExamAttemptService(AppDbContext db, ICoinsService coinsService) : IExamAttemptService
 {
     public async Task<ExamAttemptResponse?> GetAsync(Guid authUserId, Guid childId, Guid examId, CancellationToken ct)
     {
@@ -76,6 +76,11 @@ public class ExamAttemptService(AppDbContext db) : IExamAttemptService
 
         db.Attempts.Add(attempt);
         await db.SaveChangesAsync(ct);
+
+        if (isPassed)
+        {
+            await coinsService.AwardCoinsAsync(authUserId, childId, 25, "quiz_pass", examId, ct);
+        }
 
         return ToResponse(attempt);
     }

@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CupidLearn.Infrastructure.Services;
 
-public class ProgressService(AppDbContext db) : IProgressService
+public class ProgressService(AppDbContext db, ICoinsService coinsService) : IProgressService
 {
     public async Task<AttemptResponse> RecordAttemptAsync(Guid userId, Guid childId, AttemptCreateRequest request, CancellationToken ct)
     {
@@ -65,6 +65,8 @@ public class ProgressService(AppDbContext db) : IProgressService
         row.UpdatedAt = request.CompletedAt;
 
         await db.SaveChangesAsync(ct);
+
+        await coinsService.AwardCoinsAsync(userId, childId, 10, "lesson_complete", lessonId, ct);
 
         return new LessonProgressResponse(row.LessonId, "COMPLETED", row.UpdatedAt);
     }

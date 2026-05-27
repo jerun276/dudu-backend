@@ -37,6 +37,8 @@ public static class DependencyInjection
         services.AddScoped<IContentAdminService, ContentAdminService>();
         services.AddScoped<IProgressService, ProgressService>();
         services.AddScoped<ICoinsService, CoinsService>();
+        services.AddScoped<IBadgeService, BadgeService>();
+        services.AddScoped<ILeaderboardService, LeaderboardService>();
         services.AddScoped<IExamAttemptService, ExamAttemptService>();
         services.AddScoped<ISubscriptionService, SubscriptionService>();
         services.AddScoped<IOrganizationSeatService, OrganizationSeatService>();

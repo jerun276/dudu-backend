@@ -30,6 +30,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<LessonProgress> LessonProgress => Set<LessonProgress>();
     public DbSet<Attempt> Attempts => Set<Attempt>();
     public DbSet<CoinTransaction> CoinTransactions => Set<CoinTransaction>();
+    public DbSet<BadgeDefinition> BadgeDefinitions => Set<BadgeDefinition>();
+    public DbSet<EarnedBadge> EarnedBadges => Set<EarnedBadge>();
 
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<Organization> Organizations => Set<Organization>();
@@ -138,6 +140,22 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasKey(x => x.Id);
             e.HasIndex(x => new { x.UserId, x.ChildId });
             e.Property(x => x.Reason).HasMaxLength(128);
+        });
+
+        modelBuilder.Entity<BadgeDefinition>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.Key).IsUnique();
+            e.Property(x => x.Key).HasMaxLength(64);
+            e.Property(x => x.DisplayName).HasMaxLength(128);
+            e.Property(x => x.Description).HasMaxLength(512);
+            e.Property(x => x.Icon).HasMaxLength(64);
+        });
+
+        modelBuilder.Entity<EarnedBadge>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.UserId, x.ChildId, x.BadgeId }).IsUnique();
         });
         modelBuilder.Entity<Attempt>(e =>
         {

@@ -24,12 +24,19 @@ public record ProfileResponse(
 
 public record ChildProfileCreateRequest(
     [Required] string DisplayName,
-    int? Age);
+    int? Age,
+    string? AvatarUrl);
+
+public record ChildProfileUpdateRequest(
+    string? DisplayName,
+    int? Age,
+    string? AvatarUrl);
 
 public record ChildProfileResponse(
     Guid Id,
     Guid ParentUserId,
     string DisplayName,
     int? Age,
+    string? AvatarUrl,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);

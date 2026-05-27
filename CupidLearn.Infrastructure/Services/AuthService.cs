@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using CupidLearn.Application.Abstractions;
 using CupidLearn.Application.Contracts.Auth;
 using CupidLearn.Application.Exceptions;
@@ -10,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CupidLearn.Infrastructure.Services;
 
-public class AuthService(AppDbContext db, JwtTokenService jwtTokenService) : IAuthService
+public class AuthService(AppDbContext db, JwtTokenService jwtTokenService, IEmailSender emailSender) : IAuthService
 {
     private readonly PasswordHasher<AppUser> _passwordHasher = new();
 
@@ -153,5 +155,83 @@ public class AuthService(AppDbContext db, JwtTokenService jwtTokenService) : IAu
         await db.SaveChangesAsync(ct);
 
         return refreshToken;
+    }
+
+    public async Task<MessageResponse> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken ct)
+    {
+        var email = request.Email.Trim().ToLowerInvariant();
+        var user = await db.Users.FirstOrDefaultAsync(x => x.Email == email, ct);
+        if (user == null)
+        {
+            return new MessageResponse("If the account exists, a reset OTP has been sent.");
+        }
+
+        var active = await db.UserOtps
+            .Where(x => x.UserId == user.Id && !x.IsVerified && x.ExpiresAt > DateTimeOffset.UtcNow)
+            .OrderByDescending(x => x.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (active != null)
+        {
+            throw new BadRequestException("OTP already issued. Please wait before requesting again.");
+        }
+
+        var otp = RandomNumberGenerator.GetInt32(1000, 9999).ToString();
+        var otpHash = HashOtp(otp);
+
+        db.UserOtps.Add(new UserOtp
+        {
+            UserId = user.Id,
+            OtpHash = otpHash,
+            ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10),
+            IsVerified = false
+        });
+
+        await db.SaveChangesAsync(ct);
+
+        await emailSender.SendAsync(
+            toEmail: email,
+            subject: "CupidLearn Password Reset",
+            bodyText: $"Your password reset OTP is: {otp}. It will expire in 10 minutes.",
+            ct: ct);
+
+        return new MessageResponse("If the account exists, a reset OTP has been sent.");
+    }
+
+    public async Task<MessageResponse> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken ct)
+    {
+        var email = request.Email.Trim().ToLowerInvariant();
+        var user = await db.Users.FirstOrDefaultAsync(x => x.Email == email, ct);
+        if (user == null)
+        {
+            throw new BadRequestException("Invalid or expired OTP");
+        }
+
+        var otpHash = HashOtp(request.Otp);
+
+        var otpRow = await db.UserOtps
+            .Where(x => x.UserId == user.Id && !x.IsVerified && x.ExpiresAt > DateTimeOffset.UtcNow)
+            .OrderByDescending(x => x.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (otpRow == null || otpRow.OtpHash != otpHash)
+        {
+            throw new BadRequestException("Invalid or expired OTP");
+        }
+
+        otpRow.IsVerified = true;
+        user.PasswordHash = _passwordHasher.HashPassword(user, request.NewPassword);
+        user.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await db.SaveChangesAsync(ct);
+
+        return new MessageResponse("Password reset successfully.");
+    }
+
+    private static string HashOtp(string otp)
+    {
+        using var sha = SHA256.Create();
+        var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(otp));
+        return Convert.ToHexString(bytes);
     }
 }

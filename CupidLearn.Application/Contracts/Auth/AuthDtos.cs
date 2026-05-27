@@ -30,3 +30,10 @@ public record OtpRequest([Required, EmailAddress] string Email);
 public record OtpVerifyRequest(
     [Required, EmailAddress] string Email,
     [Required] string Otp);
+
+public record ForgotPasswordRequest([Required, EmailAddress] string Email);
+
+public record ResetPasswordRequest(
+    [Required, EmailAddress] string Email,
+    [Required] string Otp,
+    [Required, MinLength(6)] string NewPassword);

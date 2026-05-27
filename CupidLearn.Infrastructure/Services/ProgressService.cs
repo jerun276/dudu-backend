@@ -9,7 +9,7 @@ namespace CupidLearn.Infrastructure.Services;
 
 public class ProgressService(AppDbContext db) : IProgressService
 {
-    public async Task<AttemptResponse> RecordAttemptAsync(Guid userId, AttemptCreateRequest request, CancellationToken ct)
+    public async Task<AttemptResponse> RecordAttemptAsync(Guid userId, Guid childId, AttemptCreateRequest request, CancellationToken ct)
     {
         var attemptType = request.AttemptType.Trim();
         if (string.IsNullOrWhiteSpace(attemptType))
@@ -25,7 +25,7 @@ public class ProgressService(AppDbContext db) : IProgressService
 
         var existing = await db.Attempts
             .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.UserId == userId && x.IdempotencyKey == idempotencyKey, ct);
+            .FirstOrDefaultAsync(x => x.UserId == userId && x.ChildId == childId && x.IdempotencyKey == idempotencyKey, ct);
 
         if (existing != null)
         {
@@ -35,6 +35,7 @@ public class ProgressService(AppDbContext db) : IProgressService
         var attempt = new Attempt
         {
             UserId = userId,
+            ChildId = childId,
             LessonId = request.LessonId,
             ExerciseId = request.ExerciseId,
             AttemptType = attemptType,
@@ -51,12 +52,12 @@ public class ProgressService(AppDbContext db) : IProgressService
         return ToResponse(attempt);
     }
 
-    public async Task<LessonProgressResponse> CompleteLessonAsync(Guid userId, Guid lessonId, LessonCompleteRequest request, CancellationToken ct)
+    public async Task<LessonProgressResponse> CompleteLessonAsync(Guid userId, Guid childId, Guid lessonId, LessonCompleteRequest request, CancellationToken ct)
     {
-        var row = await db.LessonProgress.FirstOrDefaultAsync(x => x.UserId == userId && x.LessonId == lessonId, ct);
+        var row = await db.LessonProgress.FirstOrDefaultAsync(x => x.UserId == userId && x.ChildId == childId && x.LessonId == lessonId, ct);
         if (row == null)
         {
-            row = new LessonProgress { UserId = userId, LessonId = lessonId };
+            row = new LessonProgress { UserId = userId, ChildId = childId, LessonId = lessonId };
             db.LessonProgress.Add(row);
         }
 
@@ -68,10 +69,10 @@ public class ProgressService(AppDbContext db) : IProgressService
         return new LessonProgressResponse(row.LessonId, "COMPLETED", row.UpdatedAt);
     }
 
-    public async Task<List<LessonProgressResponse>> ListLessonProgressAsync(Guid userId, CancellationToken ct)
+    public async Task<List<LessonProgressResponse>> ListLessonProgressAsync(Guid userId, Guid childId, CancellationToken ct)
     {
         var rows = await db.LessonProgress
-            .Where(x => x.UserId == userId)
+            .Where(x => x.UserId == userId && x.ChildId == childId)
             .OrderByDescending(x => x.UpdatedAt)
             .ToListAsync(ct);
 
@@ -80,10 +81,10 @@ public class ProgressService(AppDbContext db) : IProgressService
             .ToList();
     }
 
-    public async Task<ProgressSummaryResponse> SummaryAsync(Guid userId, CancellationToken ct)
+    public async Task<ProgressSummaryResponse> SummaryAsync(Guid userId, Guid childId, CancellationToken ct)
     {
-        var completedLessons = await db.LessonProgress.LongCountAsync(x => x.UserId == userId && x.Completed, ct);
-        var totalAttempts = await db.Attempts.LongCountAsync(x => x.UserId == userId, ct);
+        var completedLessons = await db.LessonProgress.LongCountAsync(x => x.UserId == userId && x.ChildId == childId && x.Completed, ct);
+        var totalAttempts = await db.Attempts.LongCountAsync(x => x.UserId == userId && x.ChildId == childId, ct);
 
         return new ProgressSummaryResponse(completedLessons, totalAttempts);
     }

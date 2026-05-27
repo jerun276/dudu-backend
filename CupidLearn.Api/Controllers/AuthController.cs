@@ -39,4 +39,20 @@ public class AuthController(IAuthService authService) : ControllerBase
         await authService.LogoutAsync(request, ct);
         return NoContent();
     }
+
+    [HttpPost("forgot-password")]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<MessageResponse>> ForgotPassword([FromBody] ForgotPasswordRequest request, CancellationToken ct)
+    {
+        var response = await authService.ForgotPasswordAsync(request, ct);
+        return Ok(response);
+    }
+
+    [HttpPost("reset-password")]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<MessageResponse>> ResetPassword([FromBody] ResetPasswordRequest request, CancellationToken ct)
+    {
+        var response = await authService.ResetPasswordAsync(request, ct);
+        return Ok(response);
+    }
 }

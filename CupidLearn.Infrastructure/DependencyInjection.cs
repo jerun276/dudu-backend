@@ -1,8 +1,10 @@
+using Amazon.S3;
 using CupidLearn.Infrastructure.Auth;
 using CupidLearn.Infrastructure.Data;
 using CupidLearn.Infrastructure.Email;
 using CupidLearn.Infrastructure.Seeding;
 using CupidLearn.Infrastructure.Services;
+using CupidLearn.Infrastructure.Storage;
 using CupidLearn.Application.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -40,6 +42,18 @@ public static class DependencyInjection
 
         services.Configure<AdminSeedOptions>(configuration.GetSection(AdminSeedOptions.SectionName));
         services.AddScoped<DatabaseSeeder>();
+
+        services.Configure<R2Options>(configuration.GetSection(R2Options.SectionName));
+        var r2 = configuration.GetSection(R2Options.SectionName).Get<R2Options>()!;
+        services.AddSingleton<IAmazonS3>(_ => new AmazonS3Client(
+            r2.AccessKeyId,
+            r2.SecretAccessKey,
+            new AmazonS3Config
+            {
+                ServiceURL = $"https://{r2.AccountId}.r2.cloudflarestorage.com",
+                ForcePathStyle = true
+            }));
+        services.AddScoped<IFileStorageService, R2StorageService>();
 
         return services;
     }

@@ -29,6 +29,14 @@ public class ChildrenController(IChildrenService childrenService) : ControllerBa
         return Ok(children);
     }
 
+    [HttpPut("{childId:guid}")]
+    public async Task<ActionResult<ChildProfileResponse>> Update(Guid childId, [FromBody] ChildProfileUpdateRequest request, CancellationToken ct)
+    {
+        var parentUserId = GetUserId();
+        var response = await childrenService.UpdateAsync(parentUserId, childId, request, ct);
+        return Ok(response);
+    }
+
     private Guid GetUserId()
     {
         var idStr = User.FindFirstValue(ClaimTypes.Name) ?? User.FindFirstValue(ClaimTypes.NameIdentifier);

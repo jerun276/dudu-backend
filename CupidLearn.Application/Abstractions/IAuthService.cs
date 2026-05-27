@@ -11,4 +11,8 @@ public interface IAuthService
     Task<AuthResponse> RefreshAsync(RefreshRequest request, CancellationToken ct);
 
     Task LogoutAsync(LogoutRequest request, CancellationToken ct);
+
+    Task<MessageResponse> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken ct);
+
+    Task<MessageResponse> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken ct);
 }
